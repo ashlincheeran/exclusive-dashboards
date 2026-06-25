@@ -16,7 +16,7 @@ h1,h2,h3,h4{font-family:Georgia,"Times New Roman",serif;font-weight:600;letter-s
 .nav{position:sticky;top:54px;z-index:40;background:var(--cream-2);border-bottom:1px solid var(--line);display:flex;gap:2px;padding:0 18px;overflow-x:auto;white-space:nowrap}
 .nav a{padding:12px 12px;font-size:12px;font-weight:600;color:var(--grey);text-decoration:none;border-bottom:2px solid transparent}.nav a.active{color:var(--slate);border-bottom-color:var(--dust)}
 .wrap{max-width:1180px;margin:0 auto;padding:0 28px}
-section{padding:46px 0 8px;border-bottom:1px solid var(--line)}section:last-of-type{border-bottom:0}
+section{padding:46px 0 8px;border-bottom:1px solid var(--line);scroll-margin-top:104px}section:last-of-type{border-bottom:0}
 .sec-head{margin-bottom:18px}.sec-head h2{font-size:24px;margin:7px 0 5px}.sec-head p{margin:0;color:var(--grey);max-width:820px}
 .grid{display:grid;gap:18px}.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
 @media(max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr}}
@@ -69,10 +69,10 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 .modal.open{display:flex}.modalbox{background:#fff;border-radius:16px;max-width:560px;width:100%;padding:26px 28px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:85vh;overflow:auto}
 .modalbox h3{font-size:21px;margin:0 0 4px}.modalbox .x{float:right;cursor:pointer;color:var(--grey);font-size:20px;line-height:1}
 .mcount{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.mcount .c{background:var(--cream-2);border-radius:10px;padding:10px 12px}.mcount .v{font-family:Georgia,serif;font-size:20px}.mcount .l{font-size:10.5px;color:var(--grey);text-transform:uppercase;letter-spacing:.05em}
-#loader{position:fixed;inset:0;background:var(--cream);z-index:200;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+#loader{position:fixed;inset:0;background:var(--cream);z-index:200;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;text-align:center;padding:24px}
 #loader .spin{width:36px;height:36px;border:3px solid var(--line);border-top-color:var(--dust);border-radius:50%;animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
-#loader p{font-size:13px;color:var(--grey);margin:0}
+#loader p{font-size:13px;color:var(--grey);margin:0;max-width:480px}
 </style></head><body>
 <div id="loader"><div class="spin"></div><p>Loading dashboard…</p></div>
 <div class="topbar"><div class="brand"><b>betterhomes</b> · Exclusive Projects</div>
@@ -116,110 +116,272 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <div class="footer"><div>betterhomes · <b id="f-p"></b> — Project Operating Dashboard</div><div><span class="auto">Live</span> = Supermetrics / Sheets <span class="badge">standardised template</span></div></div>
 <div class="modal" id="modal"><div class="modalbox"><span class="x" onclick="closeModal()">&times;</span><div class="eyebrow" id="md-ph"></div><h3 id="md-title"></h3><div id="md-pc" class="src"></div><div class="mcount" id="md-counts"></div><p class="eyebrow" style="color:var(--grey)">Delivered in this phase</p><ul class="clean" id="md-items"></ul></div></div>
 <script>
-// ── CONFIGURATION ─────────────────────────────────────────────────────────────
-// After deploying the Apps Script, paste the URL below (keep the quotes).
+/* ============================================================================
+   CONFIG
+   ----------------------------------------------------------------------------
+   SHEET_API : the deployed Google Apps Script /exec URL (live sheet data).
+   AI        : static "director read" — refresh monthly by asking Claude.
+   ========================================================================== */
 var SHEET_API = 'https://script.google.com/macros/s/AKfycbw1JOO9WiWO_iAlJW-7MUqMx8CQ3nuQtCqJmk2YGtDSn_epnRW2tAL2byci3RaURp5D/exec';
 
-// ── STATIC AI INSIGHTS — refresh monthly with Claude ─────────────────────────
-var AI = {"when":"Generated 23 Jun 2026","body":"City Tower is mid-launch: overall delivery ~54% and the launch is live across owned channels, PR and Meta. Paid is the headline — 353 leads at a blended AED 66 CPL, almost entirely via Meta instant forms; the Catalogue and Acquisition ad sets run well below blended CPL, so there is room to scale. Two constraints: the developer's 3-bed/studio interior renders are delayed (blocking unit-level creative), and incentive ads plus unit videos are still in production. Google search is not running — worth adding to capture demand. Market backdrop is supportive: DIFC office shortages are pushing corporate relocation demand toward quality central-corridor leasing, even as Dubai's wider rental growth flattens on new supply.","calls":[["Scale the sub-AED-66 ad sets","Catalogue & Acquisition beat blended CPL — shift budget in."],["Unblock 3-bed/studio renders","Critical path for unit-level creative."],["Ship incentive ads + unit videos","Still in production — releasing them refreshes paid creative."],["Decide on Google search","Capture the demand Meta is generating."]],"insights":{"delivery":["Delivery","~54% delivered; developer materials 65% in — the delayed interior batch is the one critical-path blocker."],"activity":["Activity","Cumulative output across the project shows the full scale of work — strong on PR, listings and statics; unit video is the open gap."],"perf":["Performance","Blended CPL is outstanding for SZR leasing, instant-form led. Scale efficient ad sets; no Google yet."]}};
+var AI = {
+  when: 'Generated 23 Jun 2026',
+  body: 'City Tower is mid-launch: overall delivery ~54% and the launch is live across owned channels, PR and Meta. Paid is the headline — 353 leads at a blended AED 66 CPL, almost entirely via Meta instant forms; the Catalogue and Acquisition ad sets run well below blended CPL, so there is room to scale. Two constraints: the developer\'s 3-bed/studio interior renders are delayed (blocking unit-level creative), and incentive ads plus unit videos are still in production. Google search is not running — worth adding to capture demand. Market backdrop is supportive: DIFC office shortages are pushing corporate relocation demand toward quality central-corridor leasing, even as Dubai\'s wider rental growth flattens on new supply.',
+  calls: [
+    ['Scale the sub-AED-66 ad sets', 'Catalogue & Acquisition beat blended CPL — shift budget in.'],
+    ['Unblock 3-bed/studio renders', 'Critical path for unit-level creative.'],
+    ['Ship incentive ads + unit videos', 'Still in production — releasing them refreshes paid creative.'],
+    ['Decide on Google search', 'Capture the demand Meta is generating.']
+  ],
+  insights: {
+    delivery: ['Delivery', '~54% delivered; developer materials 65% in — the delayed interior batch is the one critical-path blocker.'],
+    activity: ['Activity', 'Cumulative output across the project shows the full scale of work — strong on PR, listings and statics; unit video is the open gap.'],
+    perf:     ['Performance', 'Blended CPL is outstanding for SZR leasing, instant-form led. Scale efficient ad sets; no Google yet.']
+  }
+};
 
-// ── CHART COLOURS ─────────────────────────────────────────────────────────────
-var C={slate:'#1F343F',blue:'#2C537A',dust:'#7BA0B2',tan:'#D9B9A0',taupe:'#D8CFC6',grey:'#5C6B73'};
-if(window.Chart){Chart.defaults.font.family="'Helvetica Neue',Arial,sans-serif";Chart.defaults.color=C.grey;}
+/* ============================================================================
+   HELPERS
+   ========================================================================== */
+var C = { slate:'#1F343F', blue:'#2C537A', dust:'#7BA0B2', tan:'#D9B9A0', taupe:'#D8CFC6', grey:'#5C6B73' };
+if (window.Chart) { Chart.defaults.font.family = "'Helvetica Neue',Arial,sans-serif"; Chart.defaults.color = C.grey; }
 
-// ── HELPERS ───────────────────────────────────────────────────────────────────
-function $(id){return document.getElementById(id);}
-function tx(id,v){$(id).textContent=v;}
-function fmt(n){n=n||0;return n>=1000?(n/1000).toFixed(n>=10000?0:1)+'K':(''+Math.round(n));}
-function li(a){return (a&&a.length?a:['—']).map(function(x){return '<li>'+x+'</li>';}).join('');}
-function driveThumb(link){var m=String(link||'').match(/\/file\/d\/([^\/]+)/);return m?('https://drive.google.com/thumbnail?id='+m[1]+'&sz=w600'):'';}
+function $(id) { return document.getElementById(id); }
+function tx(id, v) { var el = $(id); if (el) el.textContent = (v == null ? '' : v); }
+function fmt(n) { n = n || 0; return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'K' : ('' + Math.round(n)); }
+function li(a) { return (a && a.length ? a : ['—']).map(function (x) { return '<li>' + x + '</li>'; }).join(''); }
+function driveThumb(link) { var m = String(link || '').match(/\/file\/d\/([^\/]+)/); return m ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w600') : ''; }
 
-// ── FETCH & RENDER ────────────────────────────────────────────────────────────
-window.addEventListener('load', function() {
-  if (!SHEET_API || SHEET_API === 'PASTE_SCRIPT_URL_HERE') {
-    $('loader').innerHTML = '<p style="color:var(--bad);padding:20px;text-align:center;max-width:480px">Apps Script URL not configured.<br>Open city-tower/index.html and replace PASTE_SCRIPT_URL_HERE with your deployed script URL.</p>';
+/* ============================================================================
+   LOAD — fetch live data, then render
+   ========================================================================== */
+window.addEventListener('load', function () {
+  if (!SHEET_API || SHEET_API.indexOf('PASTE_SCRIPT_URL') !== -1) {
+    showError('Apps Script URL not configured. Open city-tower/index.html and set SHEET_API to your deployed /exec URL.');
     return;
   }
   fetch(SHEET_API)
-    .then(function(r){ return r.json(); })
-    .then(function(data) {
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
       if (data._error) throw new Error(data._error);
       data.ai = AI;
       render(data);
       $('loader').style.display = 'none';
     })
-    .catch(function(e) {
-      $('loader').innerHTML = '<p style="color:var(--bad);padding:20px;text-align:center;max-width:480px">Failed to load data — ' + (e.message || 'network error') + '.<br>Check the Apps Script URL and that it is deployed as Anyone can access.</p>';
+    .catch(function (e) {
+      showError('Failed to load data — ' + (e.message || 'network error') + '. Check the Apps Script URL and that it is deployed as “Anyone” can access.');
     });
 });
 
-// ── RENDER ────────────────────────────────────────────────────────────────────
-function render(DATA) {
-  // store for modal access
-  window._phaseSummaries = DATA.phaseSummaries || [];
-
-  // topbar + footer
-  tx('m-p',DATA.project);tx('m-d',DATA.developer);tx('m-m',DATA.monthName);tx('m-ph','Phase · '+DATA.phase);tx('f-p',DATA.project);
-
-  // health ring
-  tx('h-title',DATA.project+' — '+DATA.location);tx('ovr',DATA.overall+'%');
-  try{if(window.Chart)new Chart($('ring'),{type:'doughnut',data:{datasets:[{data:[DATA.overall,100-DATA.overall],backgroundColor:[C.dust,'rgba(255,255,255,.18)'],borderWidth:0}]},options:{cutout:'80%',plugins:{legend:{display:false},tooltip:{enabled:false}},responsive:false}});}catch(e){}
-
-  // KPIs
-  $('kpibar').innerHTML=DATA.kpis.map(function(k){return '<div class="kpi"><div class="v">'+k.v+'</div><div class="l">'+k.l+'</div><span class="tg tg-'+k.tag+'">'+k.tag+'</span></div>';}).join('');
-
-  // timeline
-  $('tl').innerHTML=DATA.phases.map(function(p,i){var cur=p.name===DATA.phase;var cls=cur?'now':(p.pct===100?'done':'');var here=cur?'<span class="youhere">You are here</span>':'';return '<div class="tl '+cls+'" onclick="openPhase('+i+')">'+here+'<div class="mo">Phase '+(i+1)+'</div><h4>'+p.name+'</h4><div class="mini"><i style="width:'+p.pct+'%"></i></div><div class="pc">'+p.pct+'% delivered</div><div class="open">View summary →</div></div>';}).join('');
-
-  // highlights
-  $('w-win').innerHTML=li(DATA.where['Win']);$('w-watch').innerHTML=li(DATA.where['Watch-out']);$('w-dec').innerHTML=li(DATA.where['Decision']);
-  tx('ai-when',DATA.ai.when);tx('ai-body',DATA.ai.body);
-  $('ai-calls').innerHTML=DATA.ai.calls.map(function(c){return '<div class="call"><b>'+c[0]+'</b>'+c[1]+'</div>';}).join('');
-  var notes=DATA.where['Note']||[];$('notesblock').innerHTML='<em>Team notes (updated weekly)</em>'+(notes.length?notes.join('<br>'):'Add weekly notes in the tracker\'s Report Notes tab.');
-
-  // AI insight blocks
-  function ins(o){return '<em>'+o[0]+' — AI read</em>'+o[1];}
-  $('ins-d').innerHTML=ins(DATA.ai.insights.delivery);$('ins-a').innerHTML=ins(DATA.ai.insights.activity);$('ins-p').innerHTML=ins(DATA.ai.insights.perf);
-
-  // delivery stats
-  tx('d1',DATA.delivered+' / '+DATA.total);tx('d2',DATA.devDelivered+'%');tx('d3',DATA.delayed);
-  $('d-tags').innerHTML=(DATA.showcase||[]).map(function(s){return s.link?('<a class="chip2" href="'+s.link+'" target="_blank">'+s.name+' ↗</a>'):('<span class="chip2" style="opacity:.6">'+s.name+'</span>');}).join('')||'<span class="src">No showcase assets tagged yet.</span>';
-
-  // activity
-  try{$('act-sub').textContent='Everything produced and shipped in the current phase — '+DATA.phase+'.';}catch(e){}
-  $('cnt').innerHTML=DATA.counterCum.map(function(c){return '<div class="cb"><div class="v">'+c.val+'</div><div class="l">'+c.label+'</div></div>';}).join('');
-
-  // paid marketing
-  var t=DATA.paid.total||{};
-  $('pstat').innerHTML=[['Paid spend (AED)',fmt(t.spend)],['Leads generated',t.leads||0],['Blended CPL (AED)',t.cpl||0],['Clicks',fmt(t.clicks)]].map(function(s){return '<div class="card stat"><div class="v">'+s[1]+'</div><div class="l">'+s[0]+' <span class="auto">·live</span></div></div>';}).join('');
-  var camps=(DATA.paid.campaigns||[]).slice().sort(function(a,b){return (b.spend||0)-(a.spend||0);});
-  $('ptab').innerHTML=camps.map(function(c){return '<tr><td>'+String(c.name).replace(/^C1-Tower-/,'')+'</td><td class="n">'+fmt(c.spend)+'</td><td class="n">'+(c.leads||0)+'</td><td class="n">'+(c.cpl?Math.round(c.cpl):'–')+'</td></tr>';}).join('');
-  $('gnote').textContent=DATA.paid.google?('Google: '+DATA.paid.google):'';
-  $('budtab').innerHTML=(DATA.budget||[]).map(function(b){var paid=(b.paid==='Yes')?'<span class="tag t-good">Paid</span>':(b.paid==='No'?'<span class="tag t-bad">Unpaid</span>':'<span class="tag t-na">—</span>');var ap=b.approved?fmt(b.approved):'—';var sp=b.spent?fmt(b.spent):'—';var v=(b.approved&&b.spent)?fmt(b.approved-b.spent):'—';return '<tr><td>'+b.month+'</td><td class="n">'+ap+'</td><td class="n">'+sp+'</td><td class="n">'+v+'</td><td>'+paid+'</td></tr>';}).join('')||'<tr><td colspan="5" class="src">Fill the Budget tab in the tracker.</td></tr>';
-
-  // charts
-  var top=camps.slice(0,6),lbl=top.map(function(c){return String(c.name).replace(/^C1-Tower-/,'').replace(/-LF.*/,'');});
-  try{if(window.Chart){new Chart($('paidChart'),{type:'bar',data:{labels:lbl,datasets:[{label:'Leads',data:top.map(function(c){return c.leads||0;}),backgroundColor:C.dust,yAxisID:'y',borderRadius:4},{type:'line',label:'CPL',data:top.map(function(c){return c.cpl||null;}),borderColor:C.tan,backgroundColor:C.tan,yAxisID:'y1',tension:.3,pointRadius:4,spanGaps:true}]},options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{title:{display:true,text:'Leads'},beginAtZero:true},y1:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'CPL'},beginAtZero:true}}}});new Chart($('spendChart'),{type:'doughnut',data:{labels:lbl,datasets:[{data:top.map(function(c){return c.spend||0;}),backgroundColor:[C.slate,C.blue,C.dust,C.tan,C.taupe,C.grey]}]},options:{maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'right'}}}});}}catch(e){if(window.console)console.warn('charts',e);}
-
-  // showcase — live from sheet
-  $('shelf').innerHTML=(DATA.showcase||[]).map(function(s){var th=driveThumb(s.link);var cl=(s.type==='Video'||s.type==='Reel')?'v':((s.type==='PDF')?'p':'');var head=th?('<div class="thumb" style="background-image:url(\''+th+'\')"><span class="nmtag">'+s.name+'</span></div>'):('<div class="band '+cl+'"><span class="nmtag">'+s.name+'</span>'+(s.type||'Asset')+'</div>');var a=s.link?('<a href="'+s.link+'" target="_blank">Open / review ↗</a>'):'<span class="src">link pending</span>';return '<div class="sc">'+head+'<div class="b"><div class="tag2">'+(s.type||'')+' · '+(s.phase||'')+'</div>'+(s.caption?('<div class="cap">'+s.caption+'</div>'):'')+a+'</div></div>';}).join('')||'<span class="src">Add files in the Showcase tab of the tracker.</span>';
-
-  // market updates — live from sheet
-  $('mkbox').innerHTML=(DATA.market||[]).map(function(m){return '<div class="mk"><div class="dt">'+(m.date||'')+'</div><div><h4>'+m.headline+'</h4><p>'+m.summary+'</p>'+(m.link?('<a href="'+m.link+'" target="_blank">'+(m.source||'Source')+' ↗</a>'):'')+'</div></div>';}).join('')||'<span class="src">No market updates yet.</span>';
-
-  // next steps — live from sheet
-  $('n1').innerHTML=li(DATA.inProg);$('n2').innerHTML=li(DATA.upcoming);$('n3').innerHTML=li(DATA.risks);$('n4').innerHTML=li(DATA.decisions);
-
-  // nav scroll spy
-  var links=[].slice.call(document.querySelectorAll('#nav a'));
-  var obs=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){var id='#'+e.target.id;links.forEach(function(l){l.classList.toggle('active',l.getAttribute('href')===id);});}});},{rootMargin:'-45% 0px -50% 0px'});
-  links.map(function(a){return document.querySelector(a.getAttribute('href'));}).forEach(function(s){if(s)obs.observe(s);});
+function showError(msg) {
+  $('loader').innerHTML = '<p style="color:var(--bad)">' + msg + '</p>';
 }
 
-// ── PHASE MODAL ───────────────────────────────────────────────────────────────
-function openPhase(i){var p=(window._phaseSummaries||[])[i];if(!p)return;tx('md-ph','Phase '+(i+1)+' · '+p.name);tx('md-title',p.name+' — '+p.pct+'% delivered');tx('md-pc',p.delivered+' of '+p.total+' deliverables complete');
- $('md-counts').innerHTML=(p.counts||[]).map(function(c){return '<div class="c"><div class="v">'+c.val+'</div><div class="l">'+c.label+'</div></div>';}).join('')||'<div class="src">No activity logged.</div>';
- $('md-items').innerHTML=(p.items&&p.items.length?p.items:[{name:'—',link:''}]).map(function(it){return '<li>'+(it.link?('<a href="'+it.link+'" target="_blank">'+it.name+' ↗</a>'):it.name)+'</li>';}).join('');$('modal').classList.add('open');}
-function closeModal(){$('modal').classList.remove('open');}
-$('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+/* ============================================================================
+   RENDER — one function per section, all driven by live DATA
+   ========================================================================== */
+function render(DATA) {
+  window._phaseSummaries = DATA.phaseSummaries || [];
+
+  renderHeader(DATA);
+  renderHealth(DATA);
+  renderTimeline(DATA);
+  renderHighlights(DATA);
+  renderDelivery(DATA);
+  renderActivity(DATA);
+  renderMarketing(DATA);
+  renderShowcase(DATA);
+  renderMarket(DATA);
+  renderNextSteps(DATA);
+  initNav();
+}
+
+function renderHeader(DATA) {
+  tx('m-p', DATA.project); tx('m-d', DATA.developer); tx('m-m', DATA.monthName);
+  tx('m-ph', 'Phase · ' + (DATA.phase || '—')); tx('f-p', DATA.project);
+}
+
+function renderHealth(DATA) {
+  tx('h-title', (DATA.project || '') + ' — ' + (DATA.location || ''));
+  tx('ovr', (DATA.overall || 0) + '%');
+  try {
+    if (window.Chart) new Chart($('ring'), {
+      type: 'doughnut',
+      data: { datasets: [{ data: [DATA.overall || 0, 100 - (DATA.overall || 0)], backgroundColor: [C.dust, 'rgba(255,255,255,.18)'], borderWidth: 0 }] },
+      options: { cutout: '80%', plugins: { legend: { display: false }, tooltip: { enabled: false } }, responsive: false }
+    });
+  } catch (e) {}
+  $('kpibar').innerHTML = (DATA.kpis || []).map(function (k) {
+    return '<div class="kpi"><div class="v">' + k.v + '</div><div class="l">' + k.l + '</div><span class="tg tg-' + k.tag + '">' + k.tag + '</span></div>';
+  }).join('');
+}
+
+function renderTimeline(DATA) {
+  $('tl').innerHTML = (DATA.phases || []).map(function (p, i) {
+    var cur = p.name === DATA.phase;
+    var cls = cur ? 'now' : (p.pct === 100 ? 'done' : '');
+    var here = cur ? '<span class="youhere">You are here</span>' : '';
+    return '<div class="tl ' + cls + '" onclick="openPhase(' + i + ')">' + here +
+      '<div class="mo">Phase ' + (i + 1) + '</div><h4>' + p.name + '</h4>' +
+      '<div class="mini"><i style="width:' + p.pct + '%"></i></div>' +
+      '<div class="pc">' + p.pct + '% delivered</div><div class="open">View summary →</div></div>';
+  }).join('');
+}
+
+function renderHighlights(DATA) {
+  var w = DATA.where || {};
+  $('w-win').innerHTML = li(w['Win']);
+  $('w-watch').innerHTML = li(w['Watch-out']);
+  $('w-dec').innerHTML = li(w['Decision']);
+
+  tx('ai-when', DATA.ai.when);
+  tx('ai-body', DATA.ai.body);
+  $('ai-calls').innerHTML = DATA.ai.calls.map(function (c) {
+    return '<div class="call"><b>' + c[0] + '</b>' + c[1] + '</div>';
+  }).join('');
+
+  var notes = (w['Note'] || []).filter(Boolean);
+  $('notesblock').innerHTML = '<em>Team notes (updated weekly)</em>' +
+    (notes.length ? notes.join('<br>') : 'Add weekly notes in the tracker’s Master tab (Type = Note).');
+}
+
+function insightHTML(o) { return '<em>' + o[0] + ' — AI read</em>' + o[1]; }
+
+function renderDelivery(DATA) {
+  tx('d1', (DATA.delivered || 0) + ' / ' + (DATA.total || 0));
+  tx('d2', (DATA.devDelivered || 0) + '%');
+  tx('d3', DATA.delayed || 0);
+  $('d-tags').innerHTML = (DATA.showcase || []).map(function (s) {
+    return s.link
+      ? '<a class="chip2" href="' + s.link + '" target="_blank">' + s.name + ' ↗</a>'
+      : '<span class="chip2" style="opacity:.6">' + s.name + '</span>';
+  }).join('') || '<span class="src">No showcase assets tagged yet.</span>';
+  $('ins-d').innerHTML = insightHTML(DATA.ai.insights.delivery);
+}
+
+function renderActivity(DATA) {
+  tx('act-sub', 'Everything produced and shipped in the current phase — ' + (DATA.phase || '') + '.');
+  $('cnt').innerHTML = (DATA.counterCum || []).map(function (c) {
+    return '<div class="cb"><div class="v">' + c.val + '</div><div class="l">' + c.label + '</div></div>';
+  }).join('');
+  $('ins-a').innerHTML = insightHTML(DATA.ai.insights.activity);
+}
+
+function renderMarketing(DATA) {
+  var paid = DATA.paid || {}, t = paid.total || {};
+  $('pstat').innerHTML = [
+    ['Paid spend (AED)', fmt(t.spend)], ['Leads generated', t.leads || 0],
+    ['Blended CPL (AED)', t.cpl || 0], ['Clicks', fmt(t.clicks)]
+  ].map(function (s) {
+    return '<div class="card stat"><div class="v">' + s[1] + '</div><div class="l">' + s[0] + ' <span class="auto">·live</span></div></div>';
+  }).join('');
+
+  var camps = (paid.campaigns || []).slice().sort(function (a, b) { return (b.spend || 0) - (a.spend || 0); });
+  $('ptab').innerHTML = camps.map(function (c) {
+    return '<tr><td>' + String(c.name).replace(/^C1-Tower-/, '') + '</td><td class="n">' + fmt(c.spend) +
+      '</td><td class="n">' + (c.leads || 0) + '</td><td class="n">' + (c.cpl ? Math.round(c.cpl) : '–') + '</td></tr>';
+  }).join('');
+  tx('gnote', paid.google ? ('Google: ' + paid.google) : '');
+
+  $('budtab').innerHTML = (DATA.budget || []).map(function (b) {
+    var paidTag = (b.paid === 'Yes') ? '<span class="tag t-good">Paid</span>'
+      : (b.paid === 'No' ? '<span class="tag t-bad">Unpaid</span>' : '<span class="tag t-na">—</span>');
+    var ap = b.approved ? fmt(b.approved) : '—';
+    var sp = b.spent ? fmt(b.spent) : '—';
+    var v = (b.approved && b.spent) ? fmt(b.approved - b.spent) : '—';
+    return '<tr><td>' + b.month + '</td><td class="n">' + ap + '</td><td class="n">' + sp + '</td><td class="n">' + v + '</td><td>' + paidTag + '</td></tr>';
+  }).join('') || '<tr><td colspan="5" class="src">Fill the Budget table in the Paid tab.</td></tr>';
+
+  $('ins-p').innerHTML = insightHTML(DATA.ai.insights.perf);
+  renderCharts(camps);
+}
+
+function renderCharts(camps) {
+  var top = camps.slice(0, 6);
+  var lbl = top.map(function (c) { return String(c.name).replace(/^C1-Tower-/, '').replace(/-LF.*/, ''); });
+  try {
+    if (!window.Chart) return;
+    new Chart($('paidChart'), {
+      type: 'bar',
+      data: { labels: lbl, datasets: [
+        { label: 'Leads', data: top.map(function (c) { return c.leads || 0; }), backgroundColor: C.dust, yAxisID: 'y', borderRadius: 4 },
+        { type: 'line', label: 'CPL', data: top.map(function (c) { return c.cpl || null; }), borderColor: C.tan, backgroundColor: C.tan, yAxisID: 'y1', tension: .3, pointRadius: 4, spanGaps: true }
+      ] },
+      options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } },
+        scales: { y: { title: { display: true, text: 'Leads' }, beginAtZero: true },
+                  y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'CPL' }, beginAtZero: true } } }
+    });
+    new Chart($('spendChart'), {
+      type: 'doughnut',
+      data: { labels: lbl, datasets: [{ data: top.map(function (c) { return c.spend || 0; }), backgroundColor: [C.slate, C.blue, C.dust, C.tan, C.taupe, C.grey] }] },
+      options: { maintainAspectRatio: false, cutout: '58%', plugins: { legend: { position: 'right' } } }
+    });
+  } catch (e) { if (window.console) console.warn('charts', e); }
+}
+
+function renderShowcase(DATA) {
+  $('shelf').innerHTML = (DATA.showcase || []).map(function (s) {
+    var th = driveThumb(s.link);
+    var cl = (s.type === 'Video' || s.type === 'Reel') ? 'v' : (s.type === 'PDF' ? 'p' : '');
+    var head = th
+      ? '<div class="thumb" style="background-image:url(\'' + th + '\')"><span class="nmtag">' + s.name + '</span></div>'
+      : '<div class="band ' + cl + '"><span class="nmtag">' + s.name + '</span>' + (s.type || 'Asset') + '</div>';
+    var a = s.link ? '<a href="' + s.link + '" target="_blank">Open / review ↗</a>' : '<span class="src">link pending</span>';
+    return '<div class="sc">' + head + '<div class="b"><div class="tag2">' + (s.type || '') + ' · ' + (s.phase || '') + '</div>' +
+      (s.caption ? '<div class="cap">' + s.caption + '</div>' : '') + a + '</div></div>';
+  }).join('') || '<span class="src">Add files in the Showcase tab of the tracker.</span>';
+}
+
+function renderMarket(DATA) {
+  $('mkbox').innerHTML = (DATA.market || []).map(function (m) {
+    return '<div class="mk"><div class="dt">' + (m.date || '') + '</div><div><h4>' + m.headline + '</h4><p>' + m.summary + '</p>' +
+      (m.link ? '<a href="' + m.link + '" target="_blank">' + (m.source || 'Source') + ' ↗</a>' : '') + '</div></div>';
+  }).join('') || '<span class="src">No market updates yet.</span>';
+}
+
+function renderNextSteps(DATA) {
+  $('n1').innerHTML = li(DATA.inProg);
+  $('n2').innerHTML = li(DATA.upcoming);
+  $('n3').innerHTML = li(DATA.risks);
+  $('n4').innerHTML = li(DATA.decisions);
+}
+
+/* ============================================================================
+   NAV — scroll-spy highlights the section under the sticky header
+   ========================================================================== */
+function initNav() {
+  var links = [].slice.call(document.querySelectorAll('#nav a'));
+  var sections = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
+  var HEADER = 120; // sticky topbar + nav height
+
+  function onScroll() {
+    var idx = 0;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i] && sections[i].getBoundingClientRect().top <= HEADER) idx = i;
+    }
+    links.forEach(function (l, i) { l.classList.toggle('active', i === idx); });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+}
+
+/* ============================================================================
+   PHASE MODAL
+   ========================================================================== */
+function openPhase(i) {
+  var p = (window._phaseSummaries || [])[i];
+  if (!p) return;
+  tx('md-ph', 'Phase ' + (i + 1) + ' · ' + p.name);
+  tx('md-title', p.name + ' — ' + p.pct + '% delivered');
+  tx('md-pc', p.delivered + ' of ' + p.total + ' deliverables complete');
+  $('md-counts').innerHTML = (p.counts || []).map(function (c) {
+    return '<div class="c"><div class="v">' + c.val + '</div><div class="l">' + c.label + '</div></div>';
+  }).join('') || '<div class="src">No activity logged.</div>';
+  $('md-items').innerHTML = (p.items && p.items.length ? p.items : [{ name: '—', link: '' }]).map(function (it) {
+    return '<li>' + (it.link ? '<a href="' + it.link + '" target="_blank">' + it.name + ' ↗</a>' : it.name) + '</li>';
+  }).join('');
+  $('modal').classList.add('open');
+}
+function closeModal() { $('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
 </script></body></html>
