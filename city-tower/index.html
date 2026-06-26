@@ -207,10 +207,16 @@ function normalize(DATA) {
   var sumT = ps.reduce(function (s, p) { return s + (p.total || 0); }, 0);
 
   if (!DATA.total)           { DATA.delivered = sumD; DATA.total = sumT; }
-  if (!DATA.overall && sumT) { DATA.overall = Math.round(sumD / sumT * 100); }
+  // Guard: Sheets stores %-formatted cells as decimals; old script versions may
+  // have mangled them into huge integers. Any value >100 is invalid — derive instead.
+  if (!DATA.overall || DATA.overall > 100) {
+    DATA.overall = sumT ? Math.round(sumD / sumT * 100) : 0;
+  }
 
-  // health / timeline bars
-  if (!DATA.phases || !DATA.phases.length) {
+  // health / timeline bars — rebuild from phaseSummaries if missing or garbled
+  var phasesOk = (DATA.phases || []).length > 0 &&
+    DATA.phases.every(function (p) { return (p.pct || 0) <= 100; });
+  if (!phasesOk) {
     DATA.phases = ps.map(function (p) { return { name: p.name, pct: p.pct }; });
   }
 
