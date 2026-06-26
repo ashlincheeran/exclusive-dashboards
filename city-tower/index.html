@@ -53,6 +53,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 .call{background:var(--cream-2);border:1px solid var(--line);border-radius:11px;padding:12px 14px;font-size:13px}.call b{display:block;font-family:Georgia,serif;font-size:13.5px;margin-bottom:3px}
 .notes{margin-top:16px;background:var(--cream-2);border:1px dashed var(--taupe);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--grey)}.notes em{font-style:normal;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;display:block;margin-bottom:5px}
 .insight{margin-top:14px;background:var(--cream-2);border-left:3px solid var(--tan);border-radius:0 10px 10px 0;padding:11px 14px;font-size:13px}.insight em{font-style:normal;color:var(--grey);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;display:block;margin-bottom:3px}
+.ai-refresh{background:var(--slate);color:#fff;border:none;border-radius:20px;padding:7px 16px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;margin-top:12px;display:inline-flex;align-items:center;gap:6px;transition:background .15s}.ai-refresh:hover{background:var(--slate-2)}.ai-refresh:disabled{opacity:.55;cursor:default}
 .shelf{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}@media(max-width:900px){.shelf{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.shelf{grid-template-columns:1fr}}
 .sc{background:var(--white);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
 .sc .thumb{height:120px;background:#e9eef1 center/cover no-repeat;display:flex;align-items:center;justify-content:center;position:relative}
@@ -88,7 +89,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 
 <section id="highlights"><div class="sec-head"><div class="eyebrow">This period</div><h2>Key highlights</h2></div>
 <div class="grid g3"><div class="card"><div class="num">01</div><h3>Wins</h3><ul class="clean" id="w-win"></ul></div><div class="card"><div class="num">02</div><h3>Watch-outs</h3><ul class="clean" id="w-watch"></ul></div><div class="card"><div class="num">03</div><h3>Decisions needed</h3><ul class="clean" id="w-dec"></ul></div></div>
-<div class="ai"><div class="ribbon"><span class="chip">AI Insights · Director read</span><span class="when" id="ai-when"></span></div><p id="ai-body"></p><div class="calls" id="ai-calls"></div></div>
+<div class="ai"><div class="ribbon"><span class="chip">AI Insights · Director read</span><span class="when" id="ai-when"></span></div><p id="ai-body"></p><div class="calls" id="ai-calls"></div><button class="ai-refresh" id="ai-btn" onclick="refreshInsights()">✦ Refresh with Gemini</button></div>
 <div class="notes" id="notesblock"></div></section>
 
 <section id="delivery"><div class="sec-head"><div class="eyebrow">Pillar 1 · Project delivery</div><h2>Delivery &amp; materials</h2></div>
@@ -123,6 +124,8 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
    AI        : static "director read" — refresh monthly by asking Claude.
    ========================================================================== */
 var SHEET_API = 'https://script.google.com/macros/s/AKfycbw1JOO9WiWO_iAlJW-7MUqMx8CQ3nuQtCqJmk2YGtDSn_epnRW2tAL2byci3RaURp5D/exec';
+var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=';
+var _liveData = null;
 
 var AI = {
   when: 'Generated 23 Jun 2026',
@@ -238,6 +241,7 @@ function normalize(DATA) {
 }
 
 function render(DATA) {
+  _liveData = DATA;
   normalize(DATA);
   window._phaseSummaries = DATA.phaseSummaries || [];
 
@@ -442,4 +446,93 @@ function openPhase(i) {
 }
 function closeModal() { $('modal').classList.remove('open'); }
 document.getElementById('modal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+
+/* ============================================================================
+   GEMINI AI REFRESH
+   ========================================================================== */
+function getGeminiKey() {
+  var k = localStorage.getItem('bh_gemini_key');
+  if (!k) {
+    k = window.prompt('Enter your Gemini API key (saved in this browser only):');
+    if (k) localStorage.setItem('bh_gemini_key', k.trim());
+  }
+  return k ? k.trim() : null;
+}
+
+function refreshInsights() {
+  if (!_liveData) return;
+  var key = getGeminiKey();
+  if (!key) return;
+  var btn = $('ai-btn');
+  btn.disabled = true;
+  btn.textContent = '⟳ Generating…';
+
+  var d = _liveData;
+  var ps = (d.phaseSummaries || []).map(function (p) { return p.name + ' ' + p.pct + '%'; }).join(', ');
+  var wins = (d.where && d.where['Win']) ? d.where['Win'].join('; ') : '—';
+  var watchouts = (d.where && d.where['Watch-out']) ? d.where['Watch-out'].join('; ') : '—';
+  var risks = (d.risks || []).slice(0, 5).join('; ') || '—';
+  var inprog = (d.inProg || []).slice(0, 5).join('; ') || '—';
+  var pt = (d.paid && d.paid.total) || {};
+  var camps = (d.paid && d.paid.campaigns || []).slice(0, 4).map(function (c) {
+    return c.name.replace(/^C1-Tower-/, '') + ' spend=' + Math.round(c.spend || 0) + ' leads=' + (c.leads || 0) + ' cpl=' + Math.round(c.cpl || 0);
+  }).join('; ');
+
+  var prompt = [
+    'You are a senior real estate marketing director. Write a concise insight snapshot for an internal client dashboard.',
+    'Return ONLY valid JSON with exactly this shape — no markdown fences, no extra keys:',
+    '{',
+    '  "when": "Generated ' + new Date().toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'}) + '",',
+    '  "body": "<2-3 sentence narrative: overall status, what is going well, what needs attention>",',
+    '  "calls": [["<action title>","<one-sentence reason>"],["<action title>","<one-sentence reason>"],["<action title>","<one-sentence reason>"],["<action title>","<one-sentence reason>"]],',
+    '  "delivery": "<1-2 sentence delivery pillar insight>",',
+    '  "activity": "<1-2 sentence marketing activity insight>",',
+    '  "performance": "<1-2 sentence paid performance insight>"',
+    '}',
+    '',
+    '--- LIVE DATA ---',
+    'Project: ' + (d.project || 'City Tower 1') + ' | Developer: ' + (d.developer || '') + ' | Location: ' + (d.location || ''),
+    'Current phase: ' + (d.phase || '—') + ' | Reporting month: ' + (d.monthName || '—'),
+    'Delivery: ' + (d.delivered || 0) + '/' + (d.total || 0) + ' deliverables (' + (d.overall || 0) + '% overall)',
+    'Developer materials in: ' + (d.devDelivered || 0) + '% | Delayed items: ' + (d.delayed || 0),
+    'Phase breakdown: ' + (ps || '—'),
+    'Paid spend: AED ' + Math.round(pt.spend || 0) + ' | Leads: ' + (pt.leads || 0) + ' | Blended CPL: AED ' + Math.round(pt.cpl || 0) + ' | Clicks: ' + Math.round(pt.clicks || 0),
+    'Top campaigns: ' + (camps || '—'),
+    'Wins this period: ' + wins,
+    'Watch-outs: ' + watchouts,
+    'Risks / blockers: ' + risks,
+    'In progress: ' + inprog
+  ].join('\n');
+
+  fetch(GEMINI_URL + key, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.4, maxOutputTokens: 1024 }
+    })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (resp) {
+      var part = ((resp.candidates || [])[0] || {}).content;
+      var text = part && part.parts && part.parts[0] && part.parts[0].text;
+      if (!text) throw new Error((resp.error && resp.error.message) || 'empty Gemini response');
+      var ins = JSON.parse(text);
+      tx('ai-when', ins.when || '');
+      tx('ai-body', ins.body || '');
+      $('ai-calls').innerHTML = (ins.calls || []).map(function (c) {
+        return '<div class="call"><b>' + c[0] + '</b>' + c[1] + '</div>';
+      }).join('');
+      $('ins-d').innerHTML = '<em>Delivery — AI read</em>' + (ins.delivery || '');
+      $('ins-a').innerHTML = '<em>Activity — AI read</em>' + (ins.activity || '');
+      $('ins-p').innerHTML = '<em>Performance — AI read</em>' + (ins.performance || '');
+      btn.textContent = '✦ Refresh with Gemini';
+      btn.disabled = false;
+    })
+    .catch(function (e) {
+      btn.textContent = '⚠ Retry';
+      btn.disabled = false;
+      if (window.console) console.error('Gemini error', e);
+    });
+}
 </script></body></html>

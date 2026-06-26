@@ -21,7 +21,7 @@
 
 function doGet() {
   try {
-    var ss    = SpreadsheetApp.getActiveSpreadsheet();
+    var ss    = SpreadsheetApp.openById('1Y6KQOhEVUJILx4SBf8a4LeJGGvcMpTkludZtD1L6zuw');
     var grids = ss.getSheets().map(function (sh) { return sh.getDataRange().getValues(); });
 
     var d = {};
