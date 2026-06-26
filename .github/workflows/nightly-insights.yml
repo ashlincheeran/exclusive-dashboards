@@ -1,0 +1,43 @@
+name: Nightly AI Insights
+
+on:
+  schedule:
+    # 02:00 UTC = 06:00 Dubai (UTC+4)
+    - cron: "0 2 * * *"
+  workflow_dispatch: # allow manual trigger from GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  update-insights:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: claude/red-repo-overview-sq54a3
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run insights update
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python scripts/update_insights.py
+
+      - name: Commit updated HTML if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add city-tower/index.html
+          git diff --staged --quiet && echo "No changes to commit." || \
+            git commit -m "chore: nightly AI insights update $(date -u '+%Y-%m-%d')"
+
+      - name: Push to branch
+        run: git push origin claude/red-repo-overview-sq54a3
