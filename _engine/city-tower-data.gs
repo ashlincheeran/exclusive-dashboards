@@ -72,9 +72,9 @@ function readMaster(grids, d) {
 
       // health block: overall %, per-phase %, developer materials %
       if (sec === 'health') {
-        if (a === 'Overall delivery progress')     { d.overall      = toInt(b); continue; }
-        if (a === 'Developer materials delivered') { d.devDelivered = toInt(b); sec = null; continue; }
-        if (a && b) healthPhases.push({ name: a, pct: toInt(b) });
+        if (a === 'Overall delivery progress')     { d.overall      = toPct100(b); continue; }
+        if (a === 'Developer materials delivered') { d.devDelivered = toPct100(b); sec = null; continue; }
+        if (a && b) healthPhases.push({ name: a, pct: toPct100(b) });
       }
 
       // deliverables & approvals block: delivered/total, delayed count
@@ -297,9 +297,12 @@ function finalise(d) {
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 function nameOf(x)  { return x.name; }
 function sv(v)      { return String(v === null || v === undefined ? '' : v).trim(); }
-function toInt(v)   { return parseInt(sv(v).replace(/[^0-9]/g, ''), 10) || 0; }
-function toMoney(v) { return parseFloat(sv(v).replace(/,/g, '')) || 0; }
-function toPct(v)   { var s = sv(v); return s.indexOf('%') !== -1 ? parseFloat(s) / 100 : (parseFloat(s) || 0); }
+function toInt(v)    { return parseInt(sv(v).replace(/[^0-9]/g, ''), 10) || 0; }
+function toMoney(v)  { return parseFloat(sv(v).replace(/,/g, '')) || 0; }
+function toPct(v)    { var s = sv(v); return s.indexOf('%') !== -1 ? parseFloat(s) / 100 : (parseFloat(s) || 0); }
+// Sheets stores percentage-formatted cells as decimals (0.72 not 72).
+// This converts either form to a 0-100 integer.
+function toPct100(v) { var n = parseFloat(sv(v).replace(/,/g, '')) || 0; return Math.round(n > 0 && n <= 1 ? n * 100 : n); }
 function jsonOut(o) {
   return ContentService.createTextOutput(JSON.stringify(o))
     .setMimeType(ContentService.MimeType.JSON);
