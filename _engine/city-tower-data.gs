@@ -47,8 +47,13 @@ function readMaster(grids, d) {
   grids.forEach(function (rows) {
     var sec = null; // section state, reset per tab
     for (var i = 0; i < rows.length; i++) {
-      var a = sv(rows[i][0]);
-      var b = sv(rows[i][1]);
+      var c0 = sv(rows[i][0]);
+      var c1 = sv(rows[i][1]);
+      var c2 = sv(rows[i][2]);
+      // Master tab has an empty col A spacer; labels are in col B, values in col C.
+      // Other tabs have labels in col A, values in col B. Support both layouts.
+      var a = c0 || c1;        // label: col A if present, else col B
+      var b = c0 ? c1 : c2;   // value: col B if label in col A, else col C
 
       // section headers
       if (a === 'PROJECT HEALTH')                  { sec = 'health'; continue; }
@@ -85,7 +90,7 @@ function readMaster(grids, d) {
       // monthly counter block: label → value
       if (sec === 'cntr') {
         if (a && b !== '') counter.push({ label: a, val: toInt(b) });
-        else if (!a)       sec = null;
+        else if (!c0 && !c1) sec = null; // end when both cols are empty
       }
 
       // notes block: Win / Watch-out / Decision / Note
