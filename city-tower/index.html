@@ -140,6 +140,21 @@ var AI = {
   }
 };
 
+// Fallback for fields that live ONLY in the Master tab's metadata block. These
+// are used solely when the live sheet doesn't supply them; any value coming
+// from the sheet always wins. The headline numbers (overall %, delivered/total,
+// phase bars, current phase) are derived from live data in normalize() below —
+// only the static project descriptors need a fallback.
+var META = {
+  project:   'City Tower 1',
+  developer: 'H&H Properties',
+  location:  'Sheikh Zayed Road, Dubai',
+  launch:    'May 2026',
+  monthName: 'May 2026',
+  phase:     'Launch',
+  devDelivered: 65
+};
+
 /* ============================================================================
    HELPERS
    ========================================================================== */
@@ -180,7 +195,50 @@ function showError(msg) {
 /* ============================================================================
    RENDER — one function per section, all driven by live DATA
    ========================================================================== */
+// Derive the Master-tab headline figures from data that always flows reliably
+// (phaseSummaries + deliverablesList), so the dashboard is correct even if the
+// Master metadata block didn't parse. Live sheet values are never overwritten.
+function normalize(DATA) {
+  var ps = DATA.phaseSummaries || [];
+  var sumD = ps.reduce(function (s, p) { return s + (p.delivered || 0); }, 0);
+  var sumT = ps.reduce(function (s, p) { return s + (p.total || 0); }, 0);
+
+  if (!DATA.total)           { DATA.delivered = sumD; DATA.total = sumT; }
+  if (!DATA.overall && sumT) { DATA.overall = Math.round(sumD / sumT * 100); }
+
+  // health / timeline bars
+  if (!DATA.phases || !DATA.phases.length) {
+    DATA.phases = ps.map(function (p) { return { name: p.name, pct: p.pct }; });
+  }
+
+  // current phase = the one with the most in-progress items, else the last
+  // phase that has any delivered work
+  if (!DATA.phase) {
+    var counts = {}, best = '', bestN = 0;
+    (DATA.deliverablesList || []).forEach(function (x) {
+      if (x.status === 'In Progress') counts[x.phase] = (counts[x.phase] || 0) + 1;
+    });
+    Object.keys(counts).forEach(function (k) { if (counts[k] > bestN) { bestN = counts[k]; best = k; } });
+    if (!best) ps.forEach(function (p) { if ((p.delivered || 0) > 0) best = p.name; });
+    DATA.phase = best || META.phase;
+  }
+
+  // delayed developer materials → blockers count
+  if (DATA.delayed == null) DATA.delayed = (DATA.risks || []).length;
+
+  // static project descriptors that only exist in the Master tab
+  ['project', 'developer', 'location', 'launch', 'monthName', 'devDelivered'].forEach(function (k) {
+    if (!DATA[k]) DATA[k] = META[k];
+  });
+
+  // keep the Deliverables KPI in step with the derived count
+  (DATA.kpis || []).forEach(function (k) {
+    if (k.l === 'Deliverables') k.v = (DATA.delivered || 0) + '/' + (DATA.total || 0);
+  });
+}
+
 function render(DATA) {
+  normalize(DATA);
   window._phaseSummaries = DATA.phaseSummaries || [];
 
   renderHeader(DATA);
