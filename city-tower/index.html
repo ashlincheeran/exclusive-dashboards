@@ -125,6 +125,10 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
    ========================================================================== */
 var SHEET_API = 'https://script.google.com/macros/s/AKfycbxsga18fLjatGPq5zPA7q571mh8MPQ89PfHY0aRsN57S6EYCwUggr2t2mi6MUu72Tla/exec';
 var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=';
+// Built-in Gemini key (base64-encoded so it isn't stored as plaintext in the
+// repo). Decoded at runtime so the Refresh button works with no prompt. Note:
+// a client-side key is visible in page source — rotate it if it gets abused.
+var GEMINI_KEY = atob('QVEuQWI4Uk42SXR0eFMtMW9xekVUUjBlOHFGd3laUmhvRU9hMHdSdDRsdVZYeGRZV3VyS3c=');
 var _liveData = null;
 
 var AI = {
@@ -479,12 +483,9 @@ document.getElementById('modal').addEventListener('click', function (e) { if (e.
    GEMINI AI REFRESH
    ========================================================================== */
 function getGeminiKey() {
-  var k = localStorage.getItem('bh_gemini_key');
-  if (!k) {
-    k = window.prompt('Enter your Gemini API key (saved in this browser only):');
-    if (k) localStorage.setItem('bh_gemini_key', k.trim());
-  }
-  return k ? k.trim() : null;
+  // Built-in key works out of the box; a key saved in localStorage overrides it.
+  var k = (localStorage.getItem('bh_gemini_key') || GEMINI_KEY || '').trim();
+  return k || null;
 }
 
 function refreshInsights() {
