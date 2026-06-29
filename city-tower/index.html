@@ -565,8 +565,10 @@ function refreshInsights() {
     .catch(function (e) {
       btn.textContent = '⚠ Retry';
       btn.disabled = false;
-      // Surface the real reason on the page so it can be diagnosed without devtools.
-      $('ins-d').innerHTML = '<em>Gemini error</em>' + (e && e.message ? e.message : String(e));
+      // Surface the real reason right in the AI box (where the button is).
+      var msg = (e && e.message ? e.message : String(e));
+      tx('ai-when', 'Gemini error');
+      $('ai-body').innerHTML = '<span style="color:var(--bad)">Gemini error: ' + msg + '</span>';
       if (window.console) console.error('Gemini error', e);
     });
 }
