@@ -56,8 +56,9 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 .ai-refresh{background:var(--slate);color:#fff;border:none;border-radius:20px;padding:7px 16px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;margin-top:12px;display:inline-flex;align-items:center;gap:6px;transition:background .15s}.ai-refresh:hover{background:var(--slate-2)}.ai-refresh:disabled{opacity:.55;cursor:default}
 .shelf{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}@media(max-width:900px){.shelf{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.shelf{grid-template-columns:1fr}}
 .sc{background:var(--white);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
-.sc .thumb{height:120px;background:#e9eef1 center/cover no-repeat;display:flex;align-items:center;justify-content:center;position:relative}
-.sc .band{height:120px;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:13px;color:#fff;letter-spacing:.08em;text-transform:uppercase;background:linear-gradient(135deg,#2C537A,#7BA0B2)}
+.sc .thumb{aspect-ratio:1/1;background:#e9eef1 center/cover no-repeat;display:flex;align-items:center;justify-content:center;position:relative}
+.sc a.thumblink{display:block;text-decoration:none}
+.sc .band{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:13px;color:#fff;letter-spacing:.08em;text-transform:uppercase;background:linear-gradient(135deg,#2C537A,#7BA0B2)}
 .sc .band.v{background:linear-gradient(135deg,#1F343F,#5C6B73)}.sc .band.p{background:linear-gradient(135deg,#9A6A2E,#D9B9A0)}
 .sc .nmtag{position:absolute;top:8px;left:8px;background:rgba(31,52,63,.82);color:#fff;font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:8px;max-width:88%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sc .b{padding:12px 14px;flex:1;display:flex;flex-direction:column;gap:5px}.sc .tag2{font-size:10px;color:var(--grey);text-transform:uppercase;letter-spacing:.08em}.sc .cap{font-size:12.5px;color:var(--slate)}
@@ -78,7 +79,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <div id="loader"><div class="spin"></div><p>Loading dashboard…</p></div>
 <div class="topbar"><div class="brand"><b>betterhomes</b> · Exclusive Projects</div>
 <div class="topmeta"><div>Project<span id="m-p"></span></div><div>Developer<span id="m-d"></span></div><div>Reporting<span id="m-m"></span></div><span class="phasepill" id="m-ph"></span></div></div>
-<div class="nav" id="nav"><a href="#timeline">Timeline</a><a href="#health">Health</a><a href="#highlights">Highlights</a><a href="#delivery">Delivery</a><a href="#activity">Activity</a><a href="#marketing">Marketing</a><a href="#showcase">Showcase</a><a href="#market">Market</a><a href="#next">Next Steps</a></div>
+<div class="nav" id="nav"><a href="#timeline">Timeline</a><a href="#health">Health</a><a href="#highlights">Highlights</a><a href="#delivery">Delivery</a><a href="#activity">Activity</a><a href="#marketing">Marketing</a><a href="#market">Market</a><a href="#next">Next Steps</a></div>
 <div class="wrap">
 
 <section id="timeline" style="border-bottom:0;padding-top:8px"><div class="sec-head"><div class="eyebrow">Campaign timeline</div><h2>The four-phase journey</h2><p>Click any phase to open its summary report.</p></div><div class="timeline" id="tl"></div></section>
@@ -88,13 +89,14 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <div><div class="eyebrow">Project health</div><h1 id="h-title"></h1><div class="kpibar" id="kpibar"></div></div></div></section>
 
 <section id="highlights"><div class="sec-head"><div class="eyebrow">This period</div><h2>Key highlights</h2></div>
-<div class="grid g3"><div class="card"><div class="num">01</div><h3>Wins</h3><ul class="clean" id="w-win"></ul></div><div class="card"><div class="num">02</div><h3>Watch-outs</h3><ul class="clean" id="w-watch"></ul></div><div class="card"><div class="num">03</div><h3>Decisions needed</h3><ul class="clean" id="w-dec"></ul></div></div>
-<div class="ai"><div class="ribbon"><span class="chip">AI Insights · Director read</span><span class="when" id="ai-when"></span></div><p id="ai-body"></p><div class="calls" id="ai-calls"></div><button class="ai-refresh" id="ai-btn" onclick="refreshInsights()">✦ Refresh with Gemini</button></div>
+<div class="grid g3" id="highgrid"></div>
+<div class="ai"><div class="ribbon"><span class="chip">AI Insights</span><span class="when" id="ai-when"></span></div><p id="ai-body"></p><div class="calls" id="ai-calls"></div><button class="ai-refresh" id="ai-btn" onclick="refreshInsights()">✦ Refresh with Gemini</button></div>
 <div class="notes" id="notesblock"></div></section>
 
 <section id="delivery"><div class="sec-head"><div class="eyebrow">Pillar 1 · Project delivery</div><h2>Delivery &amp; materials</h2></div>
-<div class="grid g3"><div class="card stat soft"><div class="v" id="d1"></div><div class="l">Deliverables delivered</div></div><div class="card stat soft"><div class="v" id="d2"></div><div class="l">Developer materials delivered</div></div><div class="card stat soft"><div class="v" id="d3"></div><div class="l">Developer materials delayed</div></div></div>
-<div class="card" style="margin-top:16px"><p class="eyebrow" style="color:var(--grey)">Assets flagged for showcase — click to open in Drive</p><div class="chips" id="d-tags"></div></div>
+<div class="grid g3" id="delstats"></div>
+<p class="eyebrow" style="color:var(--grey);margin:22px 0 0">Creative &amp; campaign assets — flagged for showcase · click any tile to open</p>
+<div class="shelf" id="shelf" style="margin-top:12px"></div>
 <div class="insight" id="ins-d"></div></section>
 
 <section id="activity"><div class="sec-head"><div class="eyebrow">Pillar 2 · Marketing activity</div><h2>Work delivered this phase</h2><p id="act-sub">Everything produced and shipped in the current phase.</p></div><div class="counter" id="cnt"></div><div class="insight" id="ins-a"></div></section>
@@ -106,8 +108,6 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Campaign detail</p><div style="max-height:220px;overflow:auto"><table><thead><tr><th>Campaign</th><th class="n">Spend</th><th class="n">Leads</th><th class="n">CPL</th></tr></thead><tbody id="ptab"></tbody></table></div><div class="src" id="gnote"></div></div>
 <div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Budget pacing — approved vs spent (incl. developer invoices)</p><table><thead><tr><th>Month</th><th class="n">Approved</th><th class="n">Spent</th><th class="n">Variance</th><th>Invoice paid</th></tr></thead><tbody id="budtab"></tbody></table></div>
 <div class="insight" id="ins-p"></div></section>
-
-<section id="showcase"><div class="sec-head"><div class="eyebrow">Creative showcase · for review</div><h2>Creative &amp; campaign assets</h2><p>The creative to walk the client through — pulled from the Showcase tab in the tracker. Each tile shows its name tag; click to open the file.</p></div><div class="shelf" id="shelf"></div></section>
 
 <section id="market"><div class="sec-head"><div class="eyebrow">Market updates</div><h2>What's happening in the market</h2><p>UAE &amp; the project's location — AI-drafted from current news each cycle, curated by the team.</p></div><div class="card" id="mkbox"></div></section>
 
@@ -121,7 +121,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
    CONFIG
    ----------------------------------------------------------------------------
    SHEET_API : the deployed Google Apps Script /exec URL (live sheet data).
-   AI        : static "director read" — refresh monthly by asking Claude.
+   AI        : static seed shown on load; click "Refresh with Gemini" to regen.
    ========================================================================== */
 var SHEET_API = 'https://script.google.com/macros/s/AKfycbxsga18fLjatGPq5zPA7q571mh8MPQ89PfHY0aRsN57S6EYCwUggr2t2mi6MUu72Tla/exec';
 var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=';
@@ -129,7 +129,7 @@ var _liveData = null;
 
 var AI = {
   when: 'Generated 23 Jun 2026',
-  body: 'City Tower is mid-launch: overall delivery ~54% and the launch is live across owned channels, PR and Meta. Paid is the headline — 353 leads at a blended AED 66 CPL, almost entirely via Meta instant forms; the Catalogue and Acquisition ad sets run well below blended CPL, so there is room to scale. Two constraints: the developer\'s 3-bed/studio interior renders are delayed (blocking unit-level creative), and incentive ads plus unit videos are still in production. Google search is not running — worth adding to capture demand. Market backdrop is supportive: DIFC office shortages are pushing corporate relocation demand toward quality central-corridor leasing, even as Dubai\'s wider rental growth flattens on new supply.',
+  body: 'City Tower is mid-launch: most planned assets are delivered and live across owned channels, PR and Meta. Paid leads the story — 353 leads at AED 66 CPL via Meta instant forms, the Catalogue set far below blended CPL. Open gaps: unit videos still in production and no Google search yet.',
   calls: [
     ['Scale the sub-AED-66 ad sets', 'Catalogue & Acquisition beat blended CPL — shift budget in.'],
     ['Unblock 3-bed/studio renders', 'Critical path for unit-level creative.'],
@@ -137,7 +137,7 @@ var AI = {
     ['Decide on Google search', 'Capture the demand Meta is generating.']
   ],
   insights: {
-    delivery: ['Delivery', '~54% delivered; developer materials 65% in — the delayed interior batch is the one critical-path blocker.'],
+    delivery: ['Delivery', 'Most planned assets are delivered and live; developer materials are nearly all in. Unit videos are the main open item.'],
     activity: ['Activity', 'Cumulative output across the project shows the full scale of work — strong on PR, listings and statics; unit video is the open gap.'],
     perf:     ['Performance', 'Blended CPL is outstanding for SZR leasing, instant-form led. Scale efficient ad sets; no Google yet.']
   }
@@ -240,9 +240,9 @@ function normalize(DATA) {
     if (!DATA[k]) DATA[k] = META[k];
   });
 
-  // keep the Deliverables KPI in step with the derived count
+  // keep the Deliverables KPI in step with the Qty-based delivered %
   (DATA.kpis || []).forEach(function (k) {
-    if (k.l === 'Deliverables') k.v = (DATA.delivered || 0) + '/' + (DATA.total || 0);
+    if (k.l === 'Deliverables') k.v = (DATA.deliveredPct || 0) + '%';
   });
 }
 
@@ -298,9 +298,20 @@ function renderTimeline(DATA) {
 
 function renderHighlights(DATA) {
   var w = DATA.where || {};
-  $('w-win').innerHTML = li(w['Win']);
-  $('w-watch').innerHTML = li(w['Watch-out']);
-  $('w-dec').innerHTML = li(w['Decision']);
+  // Only render a card for a category that actually has entries on the tracker.
+  var cats = [
+    { key: 'Win',       title: 'Wins' },
+    { key: 'Watch-out', title: 'Watch-outs' },
+    { key: 'Decision',  title: 'Decisions needed' }
+  ].filter(function (c) { return (w[c.key] || []).filter(Boolean).length; });
+
+  var cls = cats.length === 1 ? 'grid' : (cats.length === 2 ? 'grid g2' : 'grid g3');
+  $('highgrid').className = cls;
+  $('highgrid').innerHTML = cats.map(function (c, i) {
+    var n = ('0' + (i + 1)).slice(-2);
+    return '<div class="card"><div class="num">' + n + '</div><h3>' + c.title + '</h3>' +
+      '<ul class="clean">' + li(w[c.key].filter(Boolean)) + '</ul></div>';
+  }).join('') || '<div class="card"><div class="src">No highlights flagged on the tracker yet.</div></div>';
 
   tx('ai-when', DATA.ai.when);
   tx('ai-body', DATA.ai.body);
@@ -308,22 +319,31 @@ function renderHighlights(DATA) {
     return '<div class="call"><b>' + c[0] + '</b>' + c[1] + '</div>';
   }).join('');
 
+  // Notes block only appears when there are notes
   var notes = (w['Note'] || []).filter(Boolean);
-  $('notesblock').innerHTML = '<em>Team notes (updated weekly)</em>' +
-    (notes.length ? notes.join('<br>') : 'Add weekly notes in the tracker’s Master tab (Type = Note).');
+  if (notes.length) {
+    $('notesblock').style.display = '';
+    $('notesblock').innerHTML = '<em>Team notes (updated weekly)</em>' + notes.join('<br>');
+  } else {
+    $('notesblock').style.display = 'none';
+  }
 }
 
 function insightHTML(o) { return '<em>' + o[0] + ' — AI read</em>' + o[1]; }
 
 function renderDelivery(DATA) {
-  tx('d1', (DATA.delivered || 0) + ' / ' + (DATA.total || 0));
-  tx('d2', (DATA.devDelivered || 0) + '%');
-  tx('d3', DATA.delayed || 0);
-  $('d-tags').innerHTML = (DATA.showcase || []).map(function (s) {
-    return s.link
-      ? '<a class="chip2" href="' + s.link + '" target="_blank">' + s.name + ' ↗</a>'
-      : '<span class="chip2" style="opacity:.6">' + s.name + '</span>';
-  }).join('') || '<span class="src">No showcase assets tagged yet.</span>';
+  var boxes = [
+    { v: (DATA.deliveredPct || 0) + '%', l: 'Deliverables delivered' },
+    { v: (DATA.devMaterialsReceived || 0) + ' / ' + (DATA.devMaterialsTotal || 0), l: 'Developer materials delivered' }
+  ];
+  // Developer materials delayed only appears when flagged on the tracker.
+  if (DATA.delayed) boxes.push({ v: DATA.delayed, l: 'Developer materials delayed' });
+
+  $('delstats').className = boxes.length === 2 ? 'grid g2' : 'grid g3';
+  $('delstats').innerHTML = boxes.map(function (b) {
+    return '<div class="card stat soft"><div class="v">' + b.v + '</div><div class="l">' + b.l + '</div></div>';
+  }).join('');
+
   $('ins-d').innerHTML = insightHTML(DATA.ai.insights.delivery);
 }
 
@@ -391,13 +411,15 @@ function renderShowcase(DATA) {
   $('shelf').innerHTML = (DATA.showcase || []).map(function (s) {
     var th = driveThumb(s.link);
     var cl = (s.type === 'Video' || s.type === 'Reel') ? 'v' : (s.type === 'PDF' ? 'p' : '');
-    var head = th
+    var inner = th
       ? '<div class="thumb" style="background-image:url(\'' + th + '\')"><span class="nmtag">' + s.name + '</span></div>'
       : '<div class="band ' + cl + '"><span class="nmtag">' + s.name + '</span>' + (s.type || 'Asset') + '</div>';
+    // The 1×1 preview itself is the clickable link.
+    var head = s.link ? '<a class="thumblink" href="' + s.link + '" target="_blank">' + inner + '</a>' : inner;
     var a = s.link ? '<a href="' + s.link + '" target="_blank">Open / review ↗</a>' : '<span class="src">link pending</span>';
     return '<div class="sc">' + head + '<div class="b"><div class="tag2">' + (s.type || '') + ' · ' + (s.phase || '') + '</div>' +
       (s.caption ? '<div class="cap">' + s.caption + '</div>' : '') + a + '</div></div>';
-  }).join('') || '<span class="src">Add files in the Showcase tab of the tracker.</span>';
+  }).join('') || '<span class="src">Flag assets with Showcase? = Yes in the Deliverables tab.</span>';
 }
 
 function renderMarket(DATA) {
@@ -489,7 +511,7 @@ function refreshInsights() {
     'Return ONLY valid JSON with exactly this shape — no markdown fences, no extra keys:',
     '{',
     '  "when": "Generated ' + new Date().toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'}) + '",',
-    '  "body": "<2-3 sentence narrative: overall status, what is going well, what needs attention>",',
+    '  "body": "<narrative: overall status, what is going well, what needs attention — MAXIMUM 300 characters, hard limit>",',
     '  "calls": [["<action title>","<one-sentence reason>"],["<action title>","<one-sentence reason>"],["<action title>","<one-sentence reason>"],["<action title>","<one-sentence reason>"]],',
     '  "delivery": "<1-2 sentence delivery pillar insight>",',
     '  "activity": "<1-2 sentence marketing activity insight>",',
@@ -499,8 +521,8 @@ function refreshInsights() {
     '--- LIVE DATA ---',
     'Project: ' + (d.project || 'City Tower 1') + ' | Developer: ' + (d.developer || '') + ' | Location: ' + (d.location || ''),
     'Current phase: ' + (d.phase || '—') + ' | Reporting month: ' + (d.monthName || '—'),
-    'Delivery: ' + (d.delivered || 0) + '/' + (d.total || 0) + ' deliverables (' + (d.overall || 0) + '% overall)',
-    'Developer materials in: ' + (d.devDelivered || 0) + '% | Delayed items: ' + (d.delayed || 0),
+    'Delivery: ' + (d.deliveredPct || 0) + '% of planned assets delivered (' + (d.qtyDelivered || 0) + ' of ' + (d.qtyTotal || 0) + ')',
+    'Developer materials: ' + (d.devMaterialsReceived || 0) + ' of ' + (d.devMaterialsTotal || 0) + ' delivered | Delayed items: ' + (d.delayed || 0),
     'Phase breakdown: ' + (ps || '—'),
     'Paid spend: AED ' + Math.round(pt.spend || 0) + ' | Leads: ' + (pt.leads || 0) + ' | Blended CPL: AED ' + Math.round(pt.cpl || 0) + ' | Clicks: ' + Math.round(pt.clicks || 0),
     'Top campaigns: ' + (camps || '—'),
@@ -524,8 +546,11 @@ function refreshInsights() {
       var text = part && part.parts && part.parts[0] && part.parts[0].text;
       if (!text) throw new Error((resp.error && resp.error.message) || 'empty Gemini response');
       var ins = JSON.parse(text);
+      // Enforce the 300-character cap on the description regardless of model output.
+      var body = String(ins.body || '');
+      if (body.length > 300) body = body.slice(0, 297).replace(/\s+\S*$/, '') + '…';
       tx('ai-when', ins.when || '');
-      tx('ai-body', ins.body || '');
+      tx('ai-body', body);
       $('ai-calls').innerHTML = (ins.calls || []).map(function (c) {
         return '<div class="call"><b>' + c[0] + '</b>' + c[1] + '</div>';
       }).join('');
