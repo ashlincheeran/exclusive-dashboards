@@ -533,6 +533,7 @@ function refreshInsights() {
     'In progress: ' + inprog
   ].join('\n');
 
+  var httpStatus = 0;
   fetch(GEMINI_URL + key, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -541,11 +542,11 @@ function refreshInsights() {
       generationConfig: { responseMimeType: 'application/json', temperature: 0.4, maxOutputTokens: 1024 }
     })
   })
-    .then(function (r) { return r.json(); })
+    .then(function (r) { httpStatus = r.status; return r.json(); })
     .then(function (resp) {
       var part = ((resp.candidates || [])[0] || {}).content;
       var text = part && part.parts && part.parts[0] && part.parts[0].text;
-      if (!text) throw new Error((resp.error && resp.error.message) || 'empty Gemini response');
+      if (!text) throw new Error((resp.error && resp.error.message) || ('HTTP ' + httpStatus + ' — empty Gemini response'));
       var ins = JSON.parse(text);
       // Enforce the 300-character cap on the description regardless of model output.
       var body = String(ins.body || '');
@@ -564,6 +565,8 @@ function refreshInsights() {
     .catch(function (e) {
       btn.textContent = '⚠ Retry';
       btn.disabled = false;
+      // Surface the real reason on the page so it can be diagnosed without devtools.
+      $('ins-d').innerHTML = '<em>Gemini error</em>' + (e && e.message ? e.message : String(e));
       if (window.console) console.error('Gemini error', e);
     });
 }
