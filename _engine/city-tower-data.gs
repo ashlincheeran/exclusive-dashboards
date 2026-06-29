@@ -29,7 +29,7 @@ function doGet() {
     readDeliverables(grids, d);      // production assets → in-progress / upcoming / phase summaries
     readSourceMaterials(grids, d);   // developer assets → delayed = blockers
     readPaid(grids, d);              // Supermetrics campaigns + budget
-    readShowcaseAndMarket(grids, d); // showcase tiles + market updates
+    readMarket(grids, d);            // market updates (showcase comes from Deliverables)
     finalise(d);                     // derived fields: KPIs, decisions, risks, month name
 
     return jsonOut(d);
@@ -87,10 +87,15 @@ function readMaster(grids, d) {
         if (a === 'Developer materials delayed') d.delayed = toInt(b);
       }
 
-      // monthly counter block: label → value
+      // monthly counter block: label → value (Email & WhatsApp combined)
       if (sec === 'cntr') {
-        if (a && b !== '') counter.push({ label: a, val: toInt(b) });
-        else if (!c0 && !c1) sec = null; // end when both cols are empty
+        if (a && b !== '') {
+          var lbl = (a === 'Emails sent' || a === 'WhatsApp') ? 'Email & WhatsApp' : a;
+          var hit = null;
+          for (var ci = 0; ci < counter.length; ci++) { if (counter[ci].label === lbl) { hit = counter[ci]; break; } }
+          if (hit) hit.val += toInt(b);
+          else     counter.push({ label: lbl, val: toInt(b) });
+        } else if (!c0 && !c1) sec = null; // end when both cols are empty
       }
 
       // notes block: Win / Watch-out / Decision / Note
@@ -130,10 +135,14 @@ function readDeliverables(grids, d) {
       var row  = rows[r];
       var name = sv(row[2]);
       if (!name) continue;
+      // Email & WhatsApp are reported as a single source.
+      var type = sv(row[1]);
+      if (type === 'WhatsApp' || type === 'Email') type = 'Email & WhatsApp';
       items.push({
         phase:    sv(row[0]),
-        type:     sv(row[1]),
+        type:     type,
         name:     name,
+        qty:      toInt(row[4]) || 1,         // Qty column; blank counts as 1
         fileLink: sv(row[7]),
         liveLink: sv(row[8]),
         status:   sv(row[11]),
@@ -144,6 +153,21 @@ function readDeliverables(grids, d) {
   });
 
   d.deliverablesList = items;
+
+  // Total deliverables = sum of the Qty column across every row; delivered =
+  // the same sum restricted to Completed/Live rows. The dashboard shows this
+  // as a percentage. (Replaces the Master "Delivered / total" block.)
+  var isDone = function (x) { return x.status === 'Completed' || x.status === 'Live'; };
+  d.qtyTotal     = items.reduce(function (s, x) { return s + (x.qty || 0); }, 0);
+  d.qtyDelivered = items.filter(isDone).reduce(function (s, x) { return s + (x.qty || 0); }, 0);
+  d.deliveredPct = d.qtyTotal ? Math.round(d.qtyDelivered / d.qtyTotal * 100) : 0;
+
+  // Showcase carousel = deliverables flagged Showcase? = Yes (the Deliverables
+  // and Showcase tabs are now one). Thumbnails are derived client-side from the
+  // live/file link.
+  d.showcase = items.filter(function (x) { return x.showcase; }).map(function (x) {
+    return { name: x.name, type: x.type, link: x.liveLink || x.fileLink || '', phase: x.phase, caption: x.notes };
+  });
 
   var ph = d.phase || '';
   d.inProg   = items.filter(function (x) { return x.status === 'In Progress'; }).map(nameOf);
@@ -173,7 +197,7 @@ function readDeliverables(grids, d) {
 // ── SOURCE MATERIALS tab: delayed developer assets become blockers ───────────
 // Header signature: col A = "Category" AND col E = "Status".
 function readSourceMaterials(grids, d) {
-  var delayed = [];
+  var delayed = [], total = 0, received = 0;
   grids.forEach(function (rows) {
     var hi = -1;
     for (var i = 0; i < rows.length; i++) {
@@ -182,13 +206,20 @@ function readSourceMaterials(grids, d) {
     if (hi < 0) return;
     for (var r = hi + 1; r < rows.length; r++) {
       var row = rows[r];
-      if (sv(row[4]) === 'Delayed') {
-        var nm = sv(row[1]), nt = sv(row[7]);
-        if (nm) delayed.push(nm + (nt ? ' — ' + nt : ''));
+      var nm = sv(row[1]);
+      if (!nm) continue;                       // skip blank rows
+      total++;
+      var st = sv(row[4]);
+      if (st === 'Delivered' || st === 'Live') received++;
+      if (st === 'Delayed') {
+        var nt = sv(row[7]);
+        delayed.push(nm + (nt ? ' — ' + nt : ''));
       }
     }
   });
   d._delayedMaterials = delayed;
+  d.devMaterialsReceived = received;   // developer materials delivered (count)
+  d.devMaterialsTotal    = total;      // developer materials total (count)
 }
 
 // ── PAID (Supermetrics) tab: campaign table + budget table ───────────────────
@@ -241,37 +272,28 @@ function readPaid(grids, d) {
   d.budget = budget;
 }
 
-// ── SHOWCASE + MARKET (scan every tab) ───────────────────────────────────────
-function readShowcaseAndMarket(grids, d) {
-  var showcase = [], market = [], seenS = {}, seenM = {};
+// ── MARKET UPDATES (scan every tab) ──────────────────────────────────────────
+// Showcase now comes from the Deliverables tab (Showcase? = Yes), built in
+// readDeliverables — the separate Showcase tab is no longer read.
+function readMarket(grids, d) {
+  var market = [], seenM = {};
 
   grids.forEach(function (rows) {
     var sec = null;
     for (var i = 0; i < rows.length; i++) {
       var a = sv(rows[i][0]), b = sv(rows[i][1]);
 
-      if (a === 'Name tag' && b === 'Type')     { sec = 'sc'; continue; }
-      if (a === 'Date'     && b === 'Headline') { sec = 'mk'; continue; }
-      if (!a && !b)                             { sec = null; continue; }
+      if (a === 'Date' && b === 'Headline') { sec = 'mk'; continue; }
+      if (!a && !b)                         { sec = null; continue; }
 
-      if (sec === 'sc' && a) {
-        var k = a + '|' + b;
-        if (!seenS[k]) {
-          seenS[k] = 1;
-          showcase.push({ name: a, type: b, link: sv(rows[i][2]), phase: sv(rows[i][3]), caption: sv(rows[i][4]) });
-        }
-      }
-      if (sec === 'mk' && b) {
-        if (!seenM[b]) {
-          seenM[b] = 1;
-          market.push({ date: a, headline: b, summary: sv(rows[i][2]), source: sv(rows[i][3]), link: sv(rows[i][4]) });
-        }
+      if (sec === 'mk' && b && !seenM[b]) {
+        seenM[b] = 1;
+        market.push({ date: a, headline: b, summary: sv(rows[i][2]), source: sv(rows[i][3]), link: sv(rows[i][4]) });
       }
     }
   });
 
-  d.showcase = showcase;
-  d.market   = market;
+  d.market = market;
 }
 
 // ── FINALISE: derived fields ─────────────────────────────────────────────────
@@ -289,7 +311,7 @@ function finalise(d) {
     { v: fmt(t.spend),                              l: 'Paid spend (AED)',     tag: 'live'   },
     { v: t.leads || 0,                              l: 'Leads (form+IF)',      tag: 'live'   },
     { v: t.cpl   || 0,                              l: 'Blended CPL (AED)',    tag: 'live'   },
-    { v: (d.delivered || 0) + '/' + (d.total || 0), l: 'Deliverables',         tag: 'auto'   },
+    { v: (d.deliveredPct || 0) + '%',               l: 'Deliverables',         tag: 'auto'   },
     { v: d.deals || 0,                              l: 'Deals (dev-provided)', tag: 'manual' }
   ];
 }
