@@ -29,6 +29,7 @@ function doGet() {
     readDeliverables(grids, d);      // production assets → in-progress / upcoming / phase summaries
     readSourceMaterials(grids, d);   // developer assets → delayed = blockers
     readPaid(grids, d);              // Supermetrics campaigns + budget
+    readTimeline(grids, d);          // count of originally-promised activities
     readMarket(grids, d);            // market updates (showcase comes from Deliverables)
     finalise(d);                     // derived fields: KPIs, decisions, risks, month name
 
@@ -117,17 +118,17 @@ function readMaster(grids, d) {
 }
 
 // ── DELIVERABLES tab: production assets ──────────────────────────────────────
-// Header signature: col A = "Phase" AND col L = "Status".
+// Header signature: col A = "Phase" AND the "Status" column.
 // Columns: Phase(0) Type(1) Asset(2) Responsible(3) Qty(4) Copy(5) Design(6)
-//          File(7) Live(8) bhApproval(9) ClientApproval(10) Status(11)
-//          Completed(12) Month(13) Showcase?(14) Notes(15)
+//          File(7) Thumbnail(8) Live(9) bhApproval(10) ClientApproval(11)
+//          Status(12) Completed(13) Month(14) Showcase?(15) Notes(16)
 function readDeliverables(grids, d) {
   var items = [];
 
   grids.forEach(function (rows) {
     var hi = -1;
     for (var i = 0; i < rows.length; i++) {
-      if (sv(rows[i][0]) === 'Phase' && sv(rows[i][11]) === 'Status') { hi = i; break; }
+      if (sv(rows[i][0]) === 'Phase' && sv(rows[i][12]) === 'Status') { hi = i; break; }
     }
     if (hi < 0) return;
 
@@ -144,29 +145,33 @@ function readDeliverables(grids, d) {
         name:     name,
         qty:      toInt(row[4]) || 1,         // Qty column; blank counts as 1
         fileLink: sv(row[7]),
-        liveLink: sv(row[8]),
-        status:   sv(row[11]),
-        showcase: sv(row[14]) === 'Yes',
-        notes:    sv(row[15])
+        thumb:    sv(row[8]),                 // Thumbnail for preview (1x1)
+        liveLink: sv(row[9]),
+        status:   sv(row[12]),
+        showcase: sv(row[15]) === 'Yes',
+        notes:    sv(row[16])
       });
     }
   });
 
   d.deliverablesList = items;
 
-  // Total deliverables = sum of the Qty column across every row; delivered =
-  // the same sum restricted to Completed/Live rows. The dashboard shows this
-  // as a percentage. (Replaces the Master "Delivered / total" block.)
+  // Block 1 — "Total assets created" = sum of the Qty column across every row
+  // (counts each ad variant individually).
   var isDone = function (x) { return x.status === 'Completed' || x.status === 'Live'; };
   d.qtyTotal     = items.reduce(function (s, x) { return s + (x.qty || 0); }, 0);
   d.qtyDelivered = items.filter(isDone).reduce(function (s, x) { return s + (x.qty || 0); }, 0);
   d.deliveredPct = d.qtyTotal ? Math.round(d.qtyDelivered / d.qtyTotal * 100) : 0;
 
-  // Showcase carousel = deliverables flagged Showcase? = Yes (the Deliverables
-  // and Showcase tabs are now one). Thumbnails are derived client-side from the
-  // live/file link.
+  // Block 2 — deliverable line-items created (Completed/Live) vs what was
+  // promised in Timeline (Plan); d.promised is set by readTimeline().
+  d.createdCount = items.filter(isDone).length;
+
+  // Showcase carousel = deliverables flagged Showcase? = Yes (Deliverables and
+  // Showcase tabs are now one). Thumbnail uses the Thumbnail column, falling
+  // back to the live/file link client-side.
   d.showcase = items.filter(function (x) { return x.showcase; }).map(function (x) {
-    return { name: x.name, type: x.type, link: x.liveLink || x.fileLink || '', phase: x.phase, caption: x.notes };
+    return { name: x.name, type: x.type, thumb: x.thumb, link: x.liveLink || x.fileLink || '', phase: x.phase, caption: x.notes };
   });
 
   var ph = d.phase || '';
@@ -272,6 +277,25 @@ function readPaid(grids, d) {
   d.budget = budget;
 }
 
+// ── TIMELINE (Plan/Data): count of originally-promised activities ────────────
+// Uses the flat "Timeline (Data)" mirror: header row Phase | Channel | Activity.
+// Counts every row that has an Activity = what was originally promised.
+function readTimeline(grids, d) {
+  var promised = 0;
+  grids.forEach(function (rows) {
+    var hi = -1;
+    for (var i = 0; i < rows.length; i++) {
+      if (sv(rows[i][0]) === 'Phase' && sv(rows[i][1]) === 'Channel' && sv(rows[i][2]) === 'Activity') { hi = i; break; }
+    }
+    if (hi < 0) return;
+    for (var r = hi + 1; r < rows.length; r++) {
+      if (sv(rows[r][2])) promised++;   // a planned activity
+      else break;                       // end of the contiguous list
+    }
+  });
+  d.promised = promised;
+}
+
 // ── MARKET UPDATES (scan every tab) ──────────────────────────────────────────
 // Showcase now comes from the Deliverables tab (Showcase? = Yes), built in
 // readDeliverables — the separate Showcase tab is no longer read.
@@ -311,7 +335,7 @@ function finalise(d) {
     { v: fmt(t.spend),                              l: 'Paid spend (AED)',     tag: 'live'   },
     { v: t.leads || 0,                              l: 'Leads (form+IF)',      tag: 'live'   },
     { v: t.cpl   || 0,                              l: 'Blended CPL (AED)',    tag: 'live'   },
-    { v: (d.deliveredPct || 0) + '%',               l: 'Deliverables',         tag: 'auto'   },
+    { v: (d.createdCount || 0) + '/' + (d.promised || 0), l: 'Deliverables',    tag: 'auto'   },
     { v: d.deals || 0,                              l: 'Deals (dev-provided)', tag: 'manual' }
   ];
 }

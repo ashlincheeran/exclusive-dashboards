@@ -54,7 +54,9 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 .notes{margin-top:16px;background:var(--cream-2);border:1px dashed var(--taupe);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--grey)}.notes em{font-style:normal;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;display:block;margin-bottom:5px}
 .insight{margin-top:14px;background:var(--cream-2);border-left:3px solid var(--tan);border-radius:0 10px 10px 0;padding:11px 14px;font-size:13px}.insight em{font-style:normal;color:var(--grey);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;display:block;margin-bottom:3px}
 .ai-refresh{background:var(--slate);color:#fff;border:none;border-radius:20px;padding:7px 16px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;margin-top:12px;display:inline-flex;align-items:center;gap:6px;transition:background .15s}.ai-refresh:hover{background:var(--slate-2)}.ai-refresh:disabled{opacity:.55;cursor:default}
-.shelf{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}@media(max-width:900px){.shelf{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.shelf{grid-template-columns:1fr}}
+.shelf{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 12px;-webkit-overflow-scrolling:touch}
+.shelf::-webkit-scrollbar{height:8px}.shelf::-webkit-scrollbar-thumb{background:var(--taupe);border-radius:4px}
+.shelf .sc{flex:0 0 230px;scroll-snap-align:start}@media(max-width:560px){.shelf .sc{flex:0 0 78%}}
 .sc{background:var(--white);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
 .sc .thumb{aspect-ratio:1/1;background:#e9eef1 center/cover no-repeat;display:flex;align-items:center;justify-content:center;position:relative}
 .sc a.thumblink{display:block;text-decoration:none}
@@ -173,6 +175,14 @@ function tx(id, v) { var el = $(id); if (el) el.textContent = (v == null ? '' : 
 function fmt(n) { n = n || 0; return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'K' : ('' + Math.round(n)); }
 function li(a) { return (a && a.length ? a : ['—']).map(function (x) { return '<li>' + x + '</li>'; }).join(''); }
 function driveThumb(link) { var m = String(link || '').match(/\/file\/d\/([^\/]+)/); return m ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w600') : ''; }
+// Resolve a usable preview image: a Drive /file/d/ link → Drive thumbnail; any
+// other http(s) image URL → used directly; a bare filename → not usable ('').
+function resolveThumb(val) {
+  val = String(val || '');
+  if (/\/file\/d\//.test(val)) return driveThumb(val);
+  if (/^https?:\/\//.test(val)) return val;
+  return '';
+}
 
 /* ============================================================================
    LOAD — fetch live data, then render
@@ -244,9 +254,9 @@ function normalize(DATA) {
     if (!DATA[k]) DATA[k] = META[k];
   });
 
-  // keep the Deliverables KPI in step with the Qty-based delivered %
+  // keep the Deliverables KPI in step with created-vs-promised
   (DATA.kpis || []).forEach(function (k) {
-    if (k.l === 'Deliverables') k.v = (DATA.deliveredPct || 0) + '%';
+    if (k.l === 'Deliverables') k.v = (DATA.createdCount || 0) + '/' + (DATA.promised || 0);
   });
 }
 
@@ -337,13 +347,14 @@ function insightHTML(o) { return '<em>' + o[0] + ' — AI read</em>' + o[1]; }
 
 function renderDelivery(DATA) {
   var boxes = [
-    { v: (DATA.deliveredPct || 0) + '%', l: 'Deliverables delivered' },
+    { v: (DATA.qtyTotal || 0), l: 'Total assets created' },
+    { v: (DATA.createdCount || 0) + ' / ' + (DATA.promised || 0), l: 'Deliverables created vs promised' },
     { v: (DATA.devMaterialsReceived || 0) + ' / ' + (DATA.devMaterialsTotal || 0), l: 'Developer materials delivered' }
   ];
   // Developer materials delayed only appears when flagged on the tracker.
   if (DATA.delayed) boxes.push({ v: DATA.delayed, l: 'Developer materials delayed' });
 
-  $('delstats').className = boxes.length === 2 ? 'grid g2' : 'grid g3';
+  $('delstats').className = boxes.length === 4 ? 'grid g4' : 'grid g3';
   $('delstats').innerHTML = boxes.map(function (b) {
     return '<div class="card stat soft"><div class="v">' + b.v + '</div><div class="l">' + b.l + '</div></div>';
   }).join('');
@@ -413,7 +424,8 @@ function renderCharts(camps) {
 
 function renderShowcase(DATA) {
   $('shelf').innerHTML = (DATA.showcase || []).map(function (s) {
-    var th = driveThumb(s.link);
+    // Prefer the Thumbnail column; fall back to deriving from the asset link.
+    var th = resolveThumb(s.thumb) || driveThumb(s.link);
     var cl = (s.type === 'Video' || s.type === 'Reel') ? 'v' : (s.type === 'PDF' ? 'p' : '');
     var inner = th
       ? '<div class="thumb" style="background-image:url(\'' + th + '\')"><span class="nmtag">' + s.name + '</span></div>'
@@ -522,7 +534,7 @@ function refreshInsights() {
     '--- LIVE DATA ---',
     'Project: ' + (d.project || 'City Tower 1') + ' | Developer: ' + (d.developer || '') + ' | Location: ' + (d.location || ''),
     'Current phase: ' + (d.phase || '—') + ' | Reporting month: ' + (d.monthName || '—'),
-    'Delivery: ' + (d.deliveredPct || 0) + '% of planned assets delivered (' + (d.qtyDelivered || 0) + ' of ' + (d.qtyTotal || 0) + ')',
+    'Total assets created: ' + (d.qtyTotal || 0) + ' | Deliverables created vs promised: ' + (d.createdCount || 0) + ' / ' + (d.promised || 0),
     'Developer materials: ' + (d.devMaterialsReceived || 0) + ' of ' + (d.devMaterialsTotal || 0) + ' delivered | Delayed items: ' + (d.delayed || 0),
     'Phase breakdown: ' + (ps || '—'),
     'Paid spend: AED ' + Math.round(pt.spend || 0) + ' | Leads: ' + (pt.leads || 0) + ' | Blended CPL: AED ' + Math.round(pt.cpl || 0) + ' | Clicks: ' + Math.round(pt.clicks || 0),
