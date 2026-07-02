@@ -617,6 +617,8 @@ function refreshMarket() {
 
   // Keyword formula: (project/developer/area entities) + market angle + year
   var query = '(' + entities.map(function (e) { return '"' + e + '"'; }).join(' OR ') + ') Dubai real estate ' + year;
+  // Scrape Google's NEWS tab (tbm=nws) so results are real news articles only.
+  var gnews = 'https://www.google.com/search?tbm=nws&gl=ae&hl=en&q=' + encodeURIComponent(query);
   var actor = (localStorage.getItem('bh_apify_actor') || APIFY_ACTOR).trim();
   var url   = 'https://api.apify.com/v2/acts/' + actor + '/run-sync-get-dataset-items?token=' + APIFY_TOKEN;
 
@@ -624,9 +626,9 @@ function refreshMarket() {
   fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    // `queries` drives apify/google-search-scraper; the other keys are harmless
-    // to a dedicated news actor if you swap APIFY_ACTOR later.
-    body: JSON.stringify({ queries: query, query: query, resultsPerPage: 20, maxPagesPerQuery: 1, countryCode: 'ae', languageCode: 'en', maxItems: 20 })
+    // Pass the full Google News URL as the query so the scraper returns news
+    // results (title/url/source/date) rather than generic web pages.
+    body: JSON.stringify({ queries: gnews, resultsPerPage: 20, maxPagesPerQuery: 1, countryCode: 'ae', languageCode: 'en' })
   })
     .then(function (r) { status = r.status; return r.json(); })
     .then(function (rows) {
