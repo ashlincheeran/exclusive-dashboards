@@ -111,7 +111,8 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Budget pacing — approved vs spent (incl. developer invoices)</p><table><thead><tr><th>Month</th><th class="n">Approved</th><th class="n">Spent</th><th class="n">Variance</th><th>Invoice paid</th></tr></thead><tbody id="budtab"></tbody></table></div>
 <div class="insight" id="ins-p"></div></section>
 
-<section id="market"><div class="sec-head"><div class="eyebrow">Market updates</div><h2>What's happening in the market</h2><p>UAE &amp; the project's location — AI-drafted from current news each cycle, curated by the team.</p></div><div class="card" id="mkbox"></div></section>
+<section id="market"><div class="sec-head"><div class="eyebrow">Market updates</div><h2>What's happening in the market</h2><p>UAE &amp; the project's location — pulled from current news. Click below to fetch the latest PR &amp; news for this project's area.</p></div><div class="card" id="mkbox"></div>
+<button class="ai-refresh" id="mk-btn" onclick="refreshMarket()" style="margin-top:14px">↻ Pull latest PR &amp; news</button></section>
 
 <section id="next"><div class="sec-head"><div class="eyebrow">Pillar 4 · Next steps</div><h2>What happens next</h2><p>Outstanding items pulled automatically from the tracker; risks &amp; decisions from the AI PM.</p></div>
 <div class="grid g4"><div class="card"><p class="eyebrow" style="color:var(--slate-2)">In progress</p><ul class="clean" id="n1"></ul></div><div class="card"><p class="eyebrow" style="color:var(--grey)">Upcoming</p><ul class="clean" id="n2"></ul></div><div class="card"><p class="eyebrow" style="color:var(--bad)">Risks / blockers</p><ul class="clean" id="n3"></ul></div><div class="card"><p class="eyebrow" style="color:var(--warn)">Decisions / approvals</p><ul class="clean" id="n4"></ul></div></div></section>
@@ -131,6 +132,11 @@ var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini
 // repo). Decoded at runtime so the Refresh button works with no prompt. Note:
 // a client-side key is visible in page source — rotate it if it gets abused.
 var GEMINI_KEY = atob('QVEuQWI4Uk42SXR0eFMtMW9xekVUUjBlOHFGd3laUmhvRU9hMHdSdDRsdVZYeGRZV3VyS3c=');
+// Apify — used by the Market section "pull latest PR & news" button. Token is
+// base64-encoded to keep it out of the repo as plaintext; decoded at runtime.
+// APIFY_ACTOR can be overridden by setting localStorage 'bh_apify_actor'.
+var APIFY_TOKEN = atob('YXBpZnlfYXBpX1hOOXFHc0wwUlVnOVZ6bWJHdUNmeUZhSWxXdmdYUDRmcnFLTA==');
+var APIFY_ACTOR = 'lhotanova~google-news-scraper';
 var _liveData = null;
 
 var AI = {
@@ -582,6 +588,69 @@ function refreshInsights() {
       tx('ai-when', 'Gemini error');
       $('ai-body').innerHTML = '<span style="color:var(--bad)">Gemini error: ' + msg + '</span>';
       if (window.console) console.error('Gemini error', e);
+    });
+}
+
+/* ============================================================================
+   MARKET NEWS — scrape latest PR & news via Apify (Google News actor)
+   ========================================================================== */
+function refreshMarket() {
+  var btn = $('mk-btn');
+  btn.disabled = true;
+  btn.textContent = '⟳ Fetching…';
+
+  var loc   = (_liveData && _liveData.location) || 'Sheikh Zayed Road, Dubai';
+  var year  = new Date().getFullYear();
+  // Keyword formula: [area] + property type + "market" + angle + [year]
+  var query = loc + ' real estate residential rental market news ' + year;
+  var actor = (localStorage.getItem('bh_apify_actor') || APIFY_ACTOR).trim();
+  var url   = 'https://api.apify.com/v2/acts/' + actor + '/run-sync-get-dataset-items?token=' + APIFY_TOKEN;
+
+  var status = 0;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: query, maxItems: 15, language: 'en', region: 'AE' })
+  })
+    .then(function (r) { status = r.status; return r.json(); })
+    .then(function (rows) {
+      if (!Array.isArray(rows)) throw new Error((rows && (rows.error && rows.error.message || rows.message)) || ('HTTP ' + status));
+      // Last ~35 days, most relevant first, capped at 6.
+      var cutoff = Date.now() - 35 * 24 * 60 * 60 * 1000;
+      var items = rows.map(function (it) {
+        var src = it.source;
+        if (src && typeof src === 'object') src = src.title || src.name || '';
+        var dRaw = it.publishedAt || it.pubDate || it.date || it.isoDate || '';
+        var dTime = dRaw ? Date.parse(dRaw) : NaN;
+        return {
+          headline: it.title || it.headline || '(untitled)',
+          link:     it.link || it.url || it.guid || '',
+          source:   src || it.publisher || 'News',
+          summary:  it.description || it.snippet || '',
+          dateStr:  isNaN(dTime) ? (dRaw || '') : new Date(dTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+          dTime:    dTime
+        };
+      }).filter(function (x) { return isNaN(x.dTime) || x.dTime >= cutoff; });
+
+      items.sort(function (a, b) { return (b.dTime || 0) - (a.dTime || 0); });
+      items = items.slice(0, 6);
+
+      if (!items.length) throw new Error('No recent articles returned for “' + query + '”.');
+
+      $('mkbox').innerHTML = items.map(function (m) {
+        return '<div class="mk"><div class="dt">' + (m.dateStr || '') + '</div><div><h4>' + m.headline + '</h4>' +
+          (m.summary ? '<p>' + m.summary + '</p>' : '') +
+          (m.link ? '<a href="' + m.link + '" target="_blank">' + m.source + ' ↗</a>' : '') + '</div></div>';
+      }).join('');
+      btn.textContent = '↻ Pull latest PR & news';
+      btn.disabled = false;
+    })
+    .catch(function (e) {
+      btn.textContent = '⚠ Retry';
+      btn.disabled = false;
+      var msg = (e && e.message ? e.message : String(e));
+      $('mkbox').innerHTML = '<span class="src" style="color:var(--bad)">Couldn’t fetch news: ' + msg + '</span>';
+      if (window.console) console.error('Apify error', e);
     });
 }
 </script></body></html>
