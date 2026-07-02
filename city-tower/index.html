@@ -54,7 +54,9 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 .notes{margin-top:16px;background:var(--cream-2);border:1px dashed var(--taupe);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--grey)}.notes em{font-style:normal;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;display:block;margin-bottom:5px}
 .insight{margin-top:14px;background:var(--cream-2);border-left:3px solid var(--tan);border-radius:0 10px 10px 0;padding:11px 14px;font-size:13px}.insight em{font-style:normal;color:var(--grey);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;display:block;margin-bottom:3px}
 .ai-refresh{background:var(--slate);color:#fff;border:none;border-radius:20px;padding:7px 16px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;margin-top:12px;display:inline-flex;align-items:center;gap:6px;transition:background .15s}.ai-refresh:hover{background:var(--slate-2)}.ai-refresh:disabled{opacity:.55;cursor:default}
-.shelf{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}@media(max-width:900px){.shelf{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.shelf{grid-template-columns:1fr}}
+.shelf{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 12px;-webkit-overflow-scrolling:touch}
+.shelf::-webkit-scrollbar{height:8px}.shelf::-webkit-scrollbar-thumb{background:var(--taupe);border-radius:4px}
+.shelf .sc{flex:0 0 230px;scroll-snap-align:start}@media(max-width:560px){.shelf .sc{flex:0 0 78%}}
 .sc{background:var(--white);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
 .sc .thumb{aspect-ratio:1/1;background:#e9eef1 center/cover no-repeat;display:flex;align-items:center;justify-content:center;position:relative}
 .sc a.thumblink{display:block;text-decoration:none}
@@ -109,7 +111,8 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Budget pacing — approved vs spent (incl. developer invoices)</p><table><thead><tr><th>Month</th><th class="n">Approved</th><th class="n">Spent</th><th class="n">Variance</th><th>Invoice paid</th></tr></thead><tbody id="budtab"></tbody></table></div>
 <div class="insight" id="ins-p"></div></section>
 
-<section id="market"><div class="sec-head"><div class="eyebrow">Market updates</div><h2>What's happening in the market</h2><p>UAE &amp; the project's location — AI-drafted from current news each cycle, curated by the team.</p></div><div class="card" id="mkbox"></div></section>
+<section id="market"><div class="sec-head"><div class="eyebrow">Market updates</div><h2>What's happening in the market</h2><p>UAE &amp; the project's location — pulled from current news. Click below to fetch the latest PR &amp; news for this project's area.</p></div><div class="card" id="mkbox"></div>
+<button class="ai-refresh" id="mk-btn" onclick="refreshMarket()" style="margin-top:14px">↻ Pull latest PR &amp; news</button></section>
 
 <section id="next"><div class="sec-head"><div class="eyebrow">Pillar 4 · Next steps</div><h2>What happens next</h2><p>Outstanding items pulled automatically from the tracker; risks &amp; decisions from the AI PM.</p></div>
 <div class="grid g4"><div class="card"><p class="eyebrow" style="color:var(--slate-2)">In progress</p><ul class="clean" id="n1"></ul></div><div class="card"><p class="eyebrow" style="color:var(--grey)">Upcoming</p><ul class="clean" id="n2"></ul></div><div class="card"><p class="eyebrow" style="color:var(--bad)">Risks / blockers</p><ul class="clean" id="n3"></ul></div><div class="card"><p class="eyebrow" style="color:var(--warn)">Decisions / approvals</p><ul class="clean" id="n4"></ul></div></div></section>
@@ -123,12 +126,18 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
    SHEET_API : the deployed Google Apps Script /exec URL (live sheet data).
    AI        : static seed shown on load; click "Refresh with Gemini" to regen.
    ========================================================================== */
-var SHEET_API = 'https://script.google.com/macros/s/AKfycbxsga18fLjatGPq5zPA7q571mh8MPQ89PfHY0aRsN57S6EYCwUggr2t2mi6MUu72Tla/exec';
+var SHEET_API = 'https://script.google.com/macros/s/AKfycbxFC5lxAiJmJJWRrZ21aO0ehwuVheJwwYrvievMcCRxg7GVjXTrHL_69-zU0HzjBQLx/exec';
 var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=';
 // Built-in Gemini key (base64-encoded so it isn't stored as plaintext in the
 // repo). Decoded at runtime so the Refresh button works with no prompt. Note:
 // a client-side key is visible in page source — rotate it if it gets abused.
 var GEMINI_KEY = atob('QVEuQWI4Uk42SXR0eFMtMW9xekVUUjBlOHFGd3laUmhvRU9hMHdSdDRsdVZYeGRZV3VyS3c=');
+// Apify — used by the Market section "pull latest PR & news" button. Token is
+// base64-encoded to keep it out of the repo as plaintext; decoded at runtime.
+// APIFY_ACTOR can be overridden by setting localStorage 'bh_apify_actor'.
+var APIFY_TOKEN = atob('YXBpZnlfYXBpX1hOOXFHc0wwUlVnOVZ6bWJHdUNmeUZhSWxXdmdYUDRmcnFLTA==');
+// Apify's own Google Search Scraper — runs on the account plan (no rental).
+var APIFY_ACTOR = 'apify~google-search-scraper';
 var _liveData = null;
 
 var AI = {
@@ -173,6 +182,14 @@ function tx(id, v) { var el = $(id); if (el) el.textContent = (v == null ? '' : 
 function fmt(n) { n = n || 0; return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'K' : ('' + Math.round(n)); }
 function li(a) { return (a && a.length ? a : ['—']).map(function (x) { return '<li>' + x + '</li>'; }).join(''); }
 function driveThumb(link) { var m = String(link || '').match(/\/file\/d\/([^\/]+)/); return m ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w600') : ''; }
+// Resolve a usable preview image: a Drive /file/d/ link → Drive thumbnail; any
+// other http(s) image URL → used directly; a bare filename → not usable ('').
+function resolveThumb(val) {
+  val = String(val || '');
+  if (/\/file\/d\//.test(val)) return driveThumb(val);
+  if (/^https?:\/\//.test(val)) return val;
+  return '';
+}
 
 /* ============================================================================
    LOAD — fetch live data, then render
@@ -244,9 +261,9 @@ function normalize(DATA) {
     if (!DATA[k]) DATA[k] = META[k];
   });
 
-  // keep the Deliverables KPI in step with the Qty-based delivered %
+  // Deliverables KPI mirrors the Master tab's "Delivered / total" value directly
   (DATA.kpis || []).forEach(function (k) {
-    if (k.l === 'Deliverables') k.v = (DATA.deliveredPct || 0) + '%';
+    if (k.l === 'Deliverables') k.v = (DATA.delivered || 0) + '/' + (DATA.total || 0);
   });
 }
 
@@ -337,13 +354,14 @@ function insightHTML(o) { return '<em>' + o[0] + ' — AI read</em>' + o[1]; }
 
 function renderDelivery(DATA) {
   var boxes = [
-    { v: (DATA.deliveredPct || 0) + '%', l: 'Deliverables delivered' },
+    { v: (DATA.qtyTotal || 0), l: 'Total assets created' },
+    { v: (DATA.delivered || 0) + ' / ' + (DATA.total || 0), l: 'Deliverables delivered / total' },
     { v: (DATA.devMaterialsReceived || 0) + ' / ' + (DATA.devMaterialsTotal || 0), l: 'Developer materials delivered' }
   ];
   // Developer materials delayed only appears when flagged on the tracker.
   if (DATA.delayed) boxes.push({ v: DATA.delayed, l: 'Developer materials delayed' });
 
-  $('delstats').className = boxes.length === 2 ? 'grid g2' : 'grid g3';
+  $('delstats').className = boxes.length === 4 ? 'grid g4' : 'grid g3';
   $('delstats').innerHTML = boxes.map(function (b) {
     return '<div class="card stat soft"><div class="v">' + b.v + '</div><div class="l">' + b.l + '</div></div>';
   }).join('');
@@ -413,7 +431,8 @@ function renderCharts(camps) {
 
 function renderShowcase(DATA) {
   $('shelf').innerHTML = (DATA.showcase || []).map(function (s) {
-    var th = driveThumb(s.link);
+    // Prefer the Thumbnail column; fall back to deriving from the asset link.
+    var th = resolveThumb(s.thumb) || driveThumb(s.link);
     var cl = (s.type === 'Video' || s.type === 'Reel') ? 'v' : (s.type === 'PDF' ? 'p' : '');
     var inner = th
       ? '<div class="thumb" style="background-image:url(\'' + th + '\')"><span class="nmtag">' + s.name + '</span></div>'
@@ -522,7 +541,7 @@ function refreshInsights() {
     '--- LIVE DATA ---',
     'Project: ' + (d.project || 'City Tower 1') + ' | Developer: ' + (d.developer || '') + ' | Location: ' + (d.location || ''),
     'Current phase: ' + (d.phase || '—') + ' | Reporting month: ' + (d.monthName || '—'),
-    'Delivery: ' + (d.deliveredPct || 0) + '% of planned assets delivered (' + (d.qtyDelivered || 0) + ' of ' + (d.qtyTotal || 0) + ')',
+    'Total assets created: ' + (d.qtyTotal || 0) + ' | Deliverables created vs promised: ' + (d.createdCount || 0) + ' / ' + (d.promised || 0),
     'Developer materials: ' + (d.devMaterialsReceived || 0) + ' of ' + (d.devMaterialsTotal || 0) + ' delivered | Delayed items: ' + (d.delayed || 0),
     'Phase breakdown: ' + (ps || '—'),
     'Paid spend: AED ' + Math.round(pt.spend || 0) + ' | Leads: ' + (pt.leads || 0) + ' | Blended CPL: AED ' + Math.round(pt.cpl || 0) + ' | Clicks: ' + Math.round(pt.clicks || 0),
@@ -570,6 +589,119 @@ function refreshInsights() {
       tx('ai-when', 'Gemini error');
       $('ai-body').innerHTML = '<span style="color:var(--bad)">Gemini error: ' + msg + '</span>';
       if (window.console) console.error('Gemini error', e);
+    });
+}
+
+/* ============================================================================
+   MARKET NEWS — scrape latest PR & news via Apify (Google News actor)
+   ========================================================================== */
+function refreshMarket() {
+  var btn = $('mk-btn');
+  btn.disabled = true;
+  btn.textContent = '⟳ Fetching…';
+
+  var d     = _liveData || {};
+  var year  = new Date().getFullYear();
+
+  // Project-specific entities: the project, developer, its area + known names.
+  // Query and relevance filter are both built from these so results are always
+  // about THIS project — otherwise we show nothing.
+  var proj = String(d.project || 'City Tower').replace(/\s*\d+$/, '').trim();
+  var dev  = String(d.developer || 'H&H Properties').trim();
+  var ents = [proj, dev, 'H&H Properties', 'H and H Properties', 'Bright Start', 'DIFC', 'Sheikh Zayed Road'];
+  var seen = {}, entities = [];
+  ents.forEach(function (e) { var k = e.toLowerCase(); if (e && !seen[k]) { seen[k] = 1; entities.push(e); } });
+
+  // Lowercase terms an article must mention to count as project-relevant.
+  var TERMS = [proj.toLowerCase(), 'h&h', 'h and h', 'bright start', 'bright star', 'difc', 'sheikh zayed'];
+
+  // Keyword formula: (project/developer/area entities) + market angle + year
+  var query = '(' + entities.map(function (e) { return '"' + e + '"'; }).join(' OR ') + ') Dubai real estate ' + year;
+  // Scrape Google's NEWS tab (tbm=nws) so results are real news articles only.
+  var gnews = 'https://www.google.com/search?tbm=nws&gl=ae&hl=en&q=' + encodeURIComponent(query);
+  var actor = (localStorage.getItem('bh_apify_actor') || APIFY_ACTOR).trim();
+  var url   = 'https://api.apify.com/v2/acts/' + actor + '/run-sync-get-dataset-items?token=' + APIFY_TOKEN;
+
+  var status = 0;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // Pass the full Google News URL as the query so the scraper returns news
+    // results (title/url/source/date) rather than generic web pages.
+    body: JSON.stringify({ queries: gnews, resultsPerPage: 20, maxPagesPerQuery: 1, countryCode: 'ae', languageCode: 'en' })
+  })
+    .then(function (r) { status = r.status; return r.json(); })
+    .then(function (rows) {
+      if (!Array.isArray(rows)) throw new Error((rows && (rows.error && rows.error.message || rows.message)) || ('HTTP ' + status));
+
+      // Flatten: google-search-scraper returns pages with .organicResults;
+      // a news actor returns flat article items. Handle both.
+      var raw = [];
+      rows.forEach(function (it) {
+        if (it && Array.isArray(it.organicResults)) raw = raw.concat(it.organicResults);
+        else raw.push(it);
+      });
+
+      // Owned/social domains that are NOT news outlets — always excluded.
+      var BLOCK = ['instagram.com', 'facebook.com', 'tiktok.com', 'youtube.com', 'youtu.be',
+                   'linkedin.com', 'twitter.com', 'x.com', 'pinterest.com', 'threads.net',
+                   'h-h.ae', 'hh.ae', 'bhomes.com', 'dubaioffplanuae.com'];
+      var hostOf = function (u) { var m = String(u || '').match(/^https?:\/\/(?:www\.)?([^\/?#]+)/); return m ? m[1].toLowerCase() : ''; };
+
+      // Last ~35 days (items with no date are kept), most recent first, capped at 6.
+      var cutoff = Date.now() - 35 * 24 * 60 * 60 * 1000;
+      var items = raw.map(function (it) {
+        var link = it.link || it.url || it.guid || '';
+        var host = hostOf(link);
+        var src = it.source;
+        if (src && typeof src === 'object') src = src.title || src.name || '';
+        if (typeof src !== 'string') src = '';
+        src = src.split('›')[0].split('|')[0].trim();   // strip breadcrumb clutter
+        if (!src) src = host;
+        var dRaw = it.publishedAt || it.pubDate || it.date || it.isoDate || '';
+        var dTime = dRaw ? Date.parse(dRaw) : NaN;
+        return {
+          headline: it.title || it.headline || '(untitled)',
+          link:     link,
+          host:     host,
+          source:   src || 'News',
+          summary:  it.description || it.snippet || '',
+          dateStr:  isNaN(dTime) ? (dRaw || '') : new Date(dTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+          dTime:    dTime
+        };
+      }).filter(function (x) {
+        if (!x.link) return false;
+        if (BLOCK.some(function (b) { return x.host.indexOf(b) !== -1; })) return false;  // no owned/social
+        if (!isNaN(x.dTime) && x.dTime < cutoff) return false;
+        // Must actually mention the project / developer / area — else drop it.
+        var hay = (x.headline + ' ' + x.summary + ' ' + x.link).toLowerCase();
+        return TERMS.some(function (t) { return t && hay.indexOf(t) !== -1; });
+      });
+
+      items.sort(function (a, b) { return (b.dTime || 0) - (a.dTime || 0); });
+      items = items.slice(0, 6);
+
+      if (!items.length) {
+        $('mkbox').innerHTML = '<span class="src">No project-relevant news found this cycle.</span>';
+        btn.textContent = '↻ Pull latest PR & news';
+        btn.disabled = false;
+        return;
+      }
+
+      $('mkbox').innerHTML = items.map(function (m) {
+        return '<div class="mk"><div class="dt">' + (m.dateStr || '') + '</div><div><h4>' + m.headline + '</h4>' +
+          (m.summary ? '<p>' + m.summary + '</p>' : '') +
+          (m.link ? '<a href="' + m.link + '" target="_blank">' + m.source + ' ↗</a>' : '') + '</div></div>';
+      }).join('');
+      btn.textContent = '↻ Pull latest PR & news';
+      btn.disabled = false;
+    })
+    .catch(function (e) {
+      btn.textContent = '⚠ Retry';
+      btn.disabled = false;
+      var msg = (e && e.message ? e.message : String(e));
+      $('mkbox').innerHTML = '<span class="src" style="color:var(--bad)">Couldn’t fetch news: ' + msg + '</span>';
+      if (window.console) console.error('Apify error', e);
     });
 }
 </script></body></html>
