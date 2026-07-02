@@ -642,17 +642,28 @@ function refreshMarket() {
         else raw.push(it);
       });
 
+      // Owned/social domains that are NOT news outlets — always excluded.
+      var BLOCK = ['instagram.com', 'facebook.com', 'tiktok.com', 'youtube.com', 'youtu.be',
+                   'linkedin.com', 'twitter.com', 'x.com', 'pinterest.com', 'threads.net',
+                   'h-h.ae', 'hh.ae', 'bhomes.com', 'dubaioffplanuae.com'];
+      var hostOf = function (u) { var m = String(u || '').match(/^https?:\/\/(?:www\.)?([^\/?#]+)/); return m ? m[1].toLowerCase() : ''; };
+
       // Last ~35 days (items with no date are kept), most recent first, capped at 6.
       var cutoff = Date.now() - 35 * 24 * 60 * 60 * 1000;
       var items = raw.map(function (it) {
+        var link = it.link || it.url || it.guid || '';
+        var host = hostOf(link);
         var src = it.source;
         if (src && typeof src === 'object') src = src.title || src.name || '';
-        if (!src) { var du = it.displayedUrl || it.url || it.link || ''; var mm = du.match(/^https?:\/\/(?:www\.)?([^\/]+)/); src = mm ? mm[1] : (du || 'News'); }
+        if (typeof src !== 'string') src = '';
+        src = src.split('›')[0].split('|')[0].trim();   // strip breadcrumb clutter
+        if (!src) src = host;
         var dRaw = it.publishedAt || it.pubDate || it.date || it.isoDate || '';
         var dTime = dRaw ? Date.parse(dRaw) : NaN;
         return {
           headline: it.title || it.headline || '(untitled)',
-          link:     it.link || it.url || it.guid || '',
+          link:     link,
+          host:     host,
           source:   src || 'News',
           summary:  it.description || it.snippet || '',
           dateStr:  isNaN(dTime) ? (dRaw || '') : new Date(dTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
@@ -660,6 +671,7 @@ function refreshMarket() {
         };
       }).filter(function (x) {
         if (!x.link) return false;
+        if (BLOCK.some(function (b) { return x.host.indexOf(b) !== -1; })) return false;  // no owned/social
         if (!isNaN(x.dTime) && x.dTime < cutoff) return false;
         // Must actually mention the project / developer / area — else drop it.
         var hay = (x.headline + ' ' + x.summary + ' ' + x.link).toLowerCase();
