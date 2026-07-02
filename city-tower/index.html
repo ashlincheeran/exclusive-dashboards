@@ -261,9 +261,9 @@ function normalize(DATA) {
     if (!DATA[k]) DATA[k] = META[k];
   });
 
-  // keep the Deliverables KPI in step with created-vs-promised
+  // Deliverables KPI mirrors the Master tab's "Delivered / total" value directly
   (DATA.kpis || []).forEach(function (k) {
-    if (k.l === 'Deliverables') k.v = (DATA.createdCount || 0) + '/' + (DATA.promised || 0);
+    if (k.l === 'Deliverables') k.v = (DATA.delivered || 0) + '/' + (DATA.total || 0);
   });
 }
 
@@ -355,7 +355,7 @@ function insightHTML(o) { return '<em>' + o[0] + ' — AI read</em>' + o[1]; }
 function renderDelivery(DATA) {
   var boxes = [
     { v: (DATA.qtyTotal || 0), l: 'Total assets created' },
-    { v: (DATA.createdCount || 0) + ' / ' + (DATA.promised || 0), l: 'Deliverables created vs promised' },
+    { v: (DATA.delivered || 0) + ' / ' + (DATA.total || 0), l: 'Deliverables delivered / total' },
     { v: (DATA.devMaterialsReceived || 0) + ' / ' + (DATA.devMaterialsTotal || 0), l: 'Developer materials delivered' }
   ];
   // Developer materials delayed only appears when flagged on the tracker.
