@@ -600,10 +600,23 @@ function refreshMarket() {
   btn.disabled = true;
   btn.textContent = '⟳ Fetching…';
 
-  var loc   = (_liveData && _liveData.location) || 'Sheikh Zayed Road, Dubai';
+  var d     = _liveData || {};
   var year  = new Date().getFullYear();
-  // Keyword formula: [area] + property type + "market" + angle + [year]
-  var query = loc + ' real estate residential rental market news ' + year;
+
+  // Project-specific entities: the project, developer, its area + known names.
+  // Query and relevance filter are both built from these so results are always
+  // about THIS project — otherwise we show nothing.
+  var proj = String(d.project || 'City Tower').replace(/\s*\d+$/, '').trim();
+  var dev  = String(d.developer || 'H&H Properties').trim();
+  var ents = [proj, dev, 'H&H Properties', 'H and H Properties', 'Bright Start', 'DIFC', 'Sheikh Zayed Road'];
+  var seen = {}, entities = [];
+  ents.forEach(function (e) { var k = e.toLowerCase(); if (e && !seen[k]) { seen[k] = 1; entities.push(e); } });
+
+  // Lowercase terms an article must mention to count as project-relevant.
+  var TERMS = [proj.toLowerCase(), 'h&h', 'h and h', 'bright start', 'bright star', 'difc', 'sheikh zayed'];
+
+  // Keyword formula: (project/developer/area entities) + market angle + year
+  var query = '(' + entities.map(function (e) { return '"' + e + '"'; }).join(' OR ') + ') Dubai real estate ' + year;
   var actor = (localStorage.getItem('bh_apify_actor') || APIFY_ACTOR).trim();
   var url   = 'https://api.apify.com/v2/acts/' + actor + '/run-sync-get-dataset-items?token=' + APIFY_TOKEN;
 
@@ -643,12 +656,23 @@ function refreshMarket() {
           dateStr:  isNaN(dTime) ? (dRaw || '') : new Date(dTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
           dTime:    dTime
         };
-      }).filter(function (x) { return x.link && (isNaN(x.dTime) || x.dTime >= cutoff); });
+      }).filter(function (x) {
+        if (!x.link) return false;
+        if (!isNaN(x.dTime) && x.dTime < cutoff) return false;
+        // Must actually mention the project / developer / area — else drop it.
+        var hay = (x.headline + ' ' + x.summary + ' ' + x.link).toLowerCase();
+        return TERMS.some(function (t) { return t && hay.indexOf(t) !== -1; });
+      });
 
       items.sort(function (a, b) { return (b.dTime || 0) - (a.dTime || 0); });
       items = items.slice(0, 6);
 
-      if (!items.length) throw new Error('No recent articles returned for “' + query + '”.');
+      if (!items.length) {
+        $('mkbox').innerHTML = '<span class="src">No project-relevant news found this cycle.</span>';
+        btn.textContent = '↻ Pull latest PR & news';
+        btn.disabled = false;
+        return;
+      }
 
       $('mkbox').innerHTML = items.map(function (m) {
         return '<div class="mk"><div class="dt">' + (m.dateStr || '') + '</div><div><h4>' + m.headline + '</h4>' +
