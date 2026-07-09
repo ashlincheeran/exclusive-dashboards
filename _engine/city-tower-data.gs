@@ -70,6 +70,9 @@ function readMaster(grids, d) {
       if (a === 'Current phase')              d.phase     = b;
       if (a === 'Reporting month')            d.month     = b;
       if (a === 'Deals (developer-provided)') d.deals     = toInt(b);
+      // Manual all-source totals (enter on the Master or Paid tab).
+      if (a === 'Total leads (all sources)')  d.leadsAll  = toInt(b);
+      if (a === 'Blended CPL (all sources)')  d.cplAll    = toInt(b);
 
       // health block: overall %, per-phase %, developer materials %
       if (sec === 'health') {
