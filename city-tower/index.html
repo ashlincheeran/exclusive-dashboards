@@ -99,9 +99,9 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <div class="grid g3" id="delstats"></div>
 <p class="eyebrow" style="color:var(--grey);margin:22px 0 0">Creative &amp; campaign assets — flagged for showcase · click any tile to open</p>
 <div class="shelf" id="shelf" style="margin-top:12px"></div>
-<div class="insight" id="ins-d"></div></section>
+</section>
 
-<section id="activity"><div class="sec-head"><div class="eyebrow">Pillar 2 · Marketing activity</div><h2>Work delivered this phase</h2><p id="act-sub">Everything produced and shipped in the current phase.</p></div><div class="counter" id="cnt"></div><div class="insight" id="ins-a"></div></section>
+<section id="activity"><div class="sec-head"><div class="eyebrow">Pillar 2 · Marketing activity</div><h2>Work delivered this phase</h2><p id="act-sub">Everything produced and shipped in the current phase.</p></div><div class="counter" id="cnt"></div></section>
 
 <section id="marketing"><div class="sec-head"><div class="eyebrow">Pillar 3 · Marketing dashboard</div><p>Paid live from Supermetrics (all paid channels). <b>Leads shown here are generated from the paid campaigns only — not all sources.</b> Other channels (portals, email, WhatsApp) are tracked in Activity.</p></div>
 <div class="grid g4" id="pstat"></div>
@@ -109,7 +109,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <div class="card"><p class="eyebrow" style="color:var(--grey)">Spend by campaign</p><div class="chartbox"><canvas id="spendChart"></canvas></div></div></div>
 <div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Campaign detail</p><div style="max-height:220px;overflow:auto"><table><thead><tr><th>Campaign</th><th class="n">Spend</th><th class="n">Leads</th><th class="n">CPL</th></tr></thead><tbody id="ptab"></tbody></table></div><div class="src" id="gnote"></div></div>
 <div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Budget pacing — approved vs spent (incl. developer invoices)</p><table><thead><tr><th>Month</th><th class="n">Approved</th><th class="n">Spent</th><th class="n">Variance</th><th>Invoice paid</th></tr></thead><tbody id="budtab"></tbody></table></div>
-<div class="insight" id="ins-p"></div></section>
+</section>
 
 <section id="market"><div class="sec-head"><div class="eyebrow">Market updates</div><h2>What's happening in the market</h2><p>UAE &amp; the project's location — pulled from current news. Click below to fetch the latest PR &amp; news for this project's area.</p></div><div class="card" id="mkbox"></div>
 <button class="ai-refresh" id="mk-btn" onclick="refreshMarket()" style="margin-top:14px">↻ Pull latest PR &amp; news</button></section>
@@ -117,7 +117,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <section id="next"><div class="sec-head"><div class="eyebrow">Pillar 4 · Next steps</div><h2>What happens next</h2><p>Everything in the tracker not yet completed — pulled automatically.</p></div>
 <div class="card"><p class="eyebrow" style="color:var(--slate-2)">Upcoming activities</p><ul class="clean" id="n-up"></ul></div></section>
 </div>
-<div class="footer"><div>betterhomes · <b id="f-p"></b> — Project Operating Dashboard</div><div><span class="auto">Live</span> = Supermetrics / Sheets <span class="badge">standardised template</span></div></div>
+<div class="footer"><div>betterhomes · <b id="f-p"></b> — Project Operating Dashboard</div><div>Data from the project tracker <span class="badge">standardised template</span></div></div>
 <div class="modal" id="modal"><div class="modalbox"><span class="x" onclick="closeModal()">&times;</span><div class="eyebrow" id="md-ph"></div><h3 id="md-title"></h3><div id="md-pc" class="src"></div><div class="mcount" id="md-counts"></div><p class="eyebrow" style="color:var(--good)">Completed in this phase</p><ul class="clean" id="md-items"></ul><p class="eyebrow" style="color:var(--warn);margin-top:14px">Pending / in progress in this phase</p><ul class="clean" id="md-pending"></ul></div></div>
 <script>
 /* ============================================================================
@@ -261,12 +261,8 @@ function normalize(DATA) {
     if (!DATA[k]) DATA[k] = META[k];
   });
 
-  // Deliverables KPI mirrors the Master tab's "Delivered / total"; leads KPI is
-  // relabelled to make clear it counts campaign leads, not all sources.
-  (DATA.kpis || []).forEach(function (k) {
-    if (k.l === 'Deliverables') k.v = (DATA.delivered || 0) + '/' + (DATA.total || 0);
-    if (/lead/i.test(k.l)) k.l = 'Leads (campaigns)';
-  });
+  // KPIs now come straight from the API (manual "Total: Project health" tab) —
+  // no client-side overrides.
 }
 
 function render(DATA) {
@@ -304,7 +300,7 @@ function renderHealth(DATA) {
     });
   } catch (e) {}
   $('kpibar').innerHTML = (DATA.kpis || []).map(function (k) {
-    return '<div class="kpi"><div class="v">' + k.v + '</div><div class="l">' + k.l + '</div><span class="tg tg-' + k.tag + '">' + k.tag + '</span></div>';
+    return '<div class="kpi"><div class="v">' + k.v + '</div><div class="l">' + k.l + '</div></div>';
   }).join('');
 }
 
@@ -363,8 +359,6 @@ function renderDelivery(DATA) {
 
   $('delstats').className = 'grid';
   $('delstats').innerHTML = '<div class="card stat soft"><div class="v">' + (assets || 0) + '</div><div class="l">Total assets created</div></div>';
-
-  $('ins-d').innerHTML = insightHTML(DATA.ai.insights.delivery);
 }
 
 function renderActivity(DATA) {
@@ -388,17 +382,20 @@ function renderActivity(DATA) {
   $('cnt').innerHTML = tiles.map(function (c) {
     return '<div class="cb"><div class="v">' + c.val + '</div><div class="l">' + c.label + '</div></div>';
   }).join('') || '<span class="src">No delivered work logged yet.</span>';
-
-  var insA = $('ins-a'); if (insA) insA.style.display = 'none';   // "Activity — AI read" removed
 }
 
 function renderMarketing(DATA) {
   var paid = DATA.paid || {}, t = paid.total || {};
-  $('pstat').innerHTML = [
-    ['Paid spend (AED)', fmt(t.spend)], ['Leads from campaigns', t.leads || 0],
-    ['Blended CPL (AED)', t.cpl || 0], ['Clicks', fmt(t.clicks)]
-  ].map(function (s) {
-    return '<div class="card stat"><div class="v">' + s[1] + '</div><div class="l">' + s[0] + ' <span class="auto">·live</span></div></div>';
+  // This section is the paid-campaign (Supermetrics) view; all-source totals
+  // live in the health bar up top.
+  var stats = [
+    ['Spend (AED)',            fmt(t.spend)],
+    ['Leads from campaigns',   t.leads || 0],
+    ['Blended CPL — campaigns', t.cpl || 0],
+    ['Clicks',                 fmt(t.clicks)]
+  ];
+  $('pstat').innerHTML = stats.map(function (s) {
+    return '<div class="card stat"><div class="v">' + s[1] + '</div><div class="l">' + s[0] + '</div></div>';
   }).join('');
 
   var camps = (paid.campaigns || []).slice().sort(function (a, b) { return (b.spend || 0) - (a.spend || 0); });
@@ -417,7 +414,6 @@ function renderMarketing(DATA) {
     return '<tr><td>' + b.month + '</td><td class="n">' + ap + '</td><td class="n">' + sp + '</td><td class="n">' + v + '</td><td>' + paidTag + '</td></tr>';
   }).join('') || '<tr><td colspan="5" class="src">Fill the Budget table in the Paid tab.</td></tr>';
 
-  $('ins-p').innerHTML = insightHTML(DATA.ai.insights.perf);
   renderCharts(camps);
 }
 
@@ -605,9 +601,7 @@ function refreshInsights() {
       $('ai-calls').innerHTML = (ins.calls || []).map(function (c) {
         return '<div class="call"><b>' + c[0] + '</b>' + c[1] + '</div>';
       }).join('');
-      $('ins-d').innerHTML = '<em>Delivery — AI read</em>' + (ins.delivery || '');
-      $('ins-a').innerHTML = '<em>Activity — AI read</em>' + (ins.activity || '');
-      $('ins-p').innerHTML = '<em>Performance — AI read</em>' + (ins.performance || '');
+      // (per-section AI-read insight boxes were removed by request)
       btn.textContent = '✦ Refresh with Gemini';
       btn.disabled = false;
     })
@@ -645,10 +639,10 @@ function refreshMarket() {
   // Lowercase terms an article must mention to count as project-relevant.
   var TERMS = [proj.toLowerCase(), 'h&h', 'h and h', 'bright start', 'bright star', 'difc', 'sheikh zayed'];
 
-  // Keyword formula: (project/developer/area entities) + market angle + year
-  var query = '(' + entities.map(function (e) { return '"' + e + '"'; }).join(' OR ') + ') Dubai real estate ' + year;
-  // Scrape Google's NEWS tab (tbm=nws) so results are real news articles only.
-  var gnews = 'https://www.google.com/search?tbm=nws&gl=ae&hl=en&q=' + encodeURIComponent(query);
+  // Keyword formula: (project/developer/area entities) + news angle + year.
+  // NOTE: pass plain KEYWORDS as `queries` — the scraper treats a full URL as a
+  // literal search term and returns nothing, so no tbm=nws URL here.
+  var query = '(' + entities.map(function (e) { return '"' + e + '"'; }).join(' OR ') + ') Dubai real estate news ' + year;
   var actor = (localStorage.getItem('bh_apify_actor') || APIFY_ACTOR).trim();
   var url   = 'https://api.apify.com/v2/acts/' + actor + '/run-sync-get-dataset-items?token=' + APIFY_TOKEN;
 
@@ -656,9 +650,7 @@ function refreshMarket() {
   fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    // Pass the full Google News URL as the query so the scraper returns news
-    // results (title/url/source/date) rather than generic web pages.
-    body: JSON.stringify({ queries: gnews, resultsPerPage: 20, maxPagesPerQuery: 1, countryCode: 'ae', languageCode: 'en' })
+    body: JSON.stringify({ queries: query, resultsPerPage: 20, maxPagesPerQuery: 1, countryCode: 'ae', languageCode: 'en' })
   })
     .then(function (r) { status = r.status; return r.json(); })
     .then(function (rows) {
@@ -672,10 +664,13 @@ function refreshMarket() {
         else raw.push(it);
       });
 
-      // Owned/social domains that are NOT news outlets — always excluded.
+      var rawCount = raw.length;
+
+      // Owned/social/portal domains that are NOT news outlets — always excluded.
       var BLOCK = ['instagram.com', 'facebook.com', 'tiktok.com', 'youtube.com', 'youtu.be',
                    'linkedin.com', 'twitter.com', 'x.com', 'pinterest.com', 'threads.net',
-                   'h-h.ae', 'hh.ae', 'bhomes.com', 'dubaioffplanuae.com'];
+                   'h-h.ae', 'hh.ae', 'bhomes.com', 'dubaioffplanuae.com',
+                   'propertyfinder.ae', 'bayut.com', 'dubizzle.com'];
       var hostOf = function (u) { var m = String(u || '').match(/^https?:\/\/(?:www\.)?([^\/?#]+)/); return m ? m[1].toLowerCase() : ''; };
 
       // Last ~35 days (items with no date are kept), most recent first, capped at 6.
@@ -712,7 +707,11 @@ function refreshMarket() {
       items = items.slice(0, 6);
 
       if (!items.length) {
-        $('mkbox').innerHTML = '<span class="src">No project-relevant news found this cycle.</span>';
+        // Diagnose: scraper returned nothing vs. everything filtered out.
+        var msg = rawCount
+          ? ('Scanned ' + rawCount + ' results — none were project-specific news in the last 35 days.')
+          : 'The news scraper returned no results (check the Apify actor/token).';
+        $('mkbox').innerHTML = '<span class="src">' + msg + '</span>';
         btn.textContent = '↻ Pull latest PR & news';
         btn.disabled = false;
         return;
