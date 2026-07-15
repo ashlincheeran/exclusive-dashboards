@@ -645,10 +645,10 @@ function refreshMarket() {
   // Lowercase terms an article must mention to count as project-relevant.
   var TERMS = [proj.toLowerCase(), 'h&h', 'h and h', 'bright start', 'bright star', 'difc', 'sheikh zayed'];
 
-  // Keyword formula: (project/developer/area entities) + market angle + year
-  var query = '(' + entities.map(function (e) { return '"' + e + '"'; }).join(' OR ') + ') Dubai real estate ' + year;
-  // Scrape Google's NEWS tab (tbm=nws) so results are real news articles only.
-  var gnews = 'https://www.google.com/search?tbm=nws&gl=ae&hl=en&q=' + encodeURIComponent(query);
+  // Keyword formula: (project/developer/area entities) + news angle + year.
+  // NOTE: pass plain KEYWORDS as `queries` — the scraper treats a full URL as a
+  // literal search term and returns nothing, so no tbm=nws URL here.
+  var query = '(' + entities.map(function (e) { return '"' + e + '"'; }).join(' OR ') + ') Dubai real estate news ' + year;
   var actor = (localStorage.getItem('bh_apify_actor') || APIFY_ACTOR).trim();
   var url   = 'https://api.apify.com/v2/acts/' + actor + '/run-sync-get-dataset-items?token=' + APIFY_TOKEN;
 
@@ -656,9 +656,7 @@ function refreshMarket() {
   fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    // Pass the full Google News URL as the query so the scraper returns news
-    // results (title/url/source/date) rather than generic web pages.
-    body: JSON.stringify({ queries: gnews, resultsPerPage: 20, maxPagesPerQuery: 1, countryCode: 'ae', languageCode: 'en' })
+    body: JSON.stringify({ queries: query, resultsPerPage: 20, maxPagesPerQuery: 1, countryCode: 'ae', languageCode: 'en' })
   })
     .then(function (r) { status = r.status; return r.json(); })
     .then(function (rows) {
@@ -672,10 +670,13 @@ function refreshMarket() {
         else raw.push(it);
       });
 
-      // Owned/social domains that are NOT news outlets — always excluded.
+      var rawCount = raw.length;
+
+      // Owned/social/portal domains that are NOT news outlets — always excluded.
       var BLOCK = ['instagram.com', 'facebook.com', 'tiktok.com', 'youtube.com', 'youtu.be',
                    'linkedin.com', 'twitter.com', 'x.com', 'pinterest.com', 'threads.net',
-                   'h-h.ae', 'hh.ae', 'bhomes.com', 'dubaioffplanuae.com'];
+                   'h-h.ae', 'hh.ae', 'bhomes.com', 'dubaioffplanuae.com',
+                   'propertyfinder.ae', 'bayut.com', 'dubizzle.com'];
       var hostOf = function (u) { var m = String(u || '').match(/^https?:\/\/(?:www\.)?([^\/?#]+)/); return m ? m[1].toLowerCase() : ''; };
 
       // Last ~35 days (items with no date are kept), most recent first, capped at 6.
@@ -712,7 +713,11 @@ function refreshMarket() {
       items = items.slice(0, 6);
 
       if (!items.length) {
-        $('mkbox').innerHTML = '<span class="src">No project-relevant news found this cycle.</span>';
+        // Diagnose: scraper returned nothing vs. everything filtered out.
+        var msg = rawCount
+          ? ('Scanned ' + rawCount + ' results — none were project-specific news in the last 35 days.')
+          : 'The news scraper returned no results (check the Apify actor/token).';
+        $('mkbox').innerHTML = '<span class="src">' + msg + '</span>';
         btn.textContent = '↻ Pull latest PR & news';
         btn.disabled = false;
         return;
