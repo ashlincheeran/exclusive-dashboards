@@ -30,6 +30,7 @@ function doGet() {
     readSourceMaterials(grids, d);   // developer assets → delayed = blockers
     readPaid(grids, d);              // Supermetrics campaigns + budget
     readTimeline(grids, d);          // count of originally-promised activities
+    readHealth(grids, d);            // "Total: Project health" tab — manual all-source KPIs
     readMarket(grids, d);            // market updates (showcase comes from Deliverables)
     finalise(d);                     // derived fields: KPIs, decisions, risks, month name
 
@@ -299,6 +300,36 @@ function readTimeline(grids, d) {
   d.promised = promised;
 }
 
+// ── TOTAL: PROJECT HEALTH tab — manual all-source KPI block ──────────────────
+// Header row has "Spend (AED)" … "Deals"; the row directly below holds the
+// manually-entered values. Column positions are detected, not assumed.
+function readHealth(grids, d) {
+  grids.forEach(function (rows) {
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i], idx = {}, hasSpend = false, hasDeals = false;
+      for (var c = 0; c < r.length; c++) {
+        var v = sv(r[c]);
+        if (v === 'Spend (AED)')    { idx.spend = c; hasSpend = true; }
+        else if (v === 'Leads')     { idx.leads = c; }
+        else if (v === 'CPL (AED)') { idx.cpl = c; }
+        else if (v === 'Total viewings') { idx.viewings = c; }
+        else if (v === 'Deals')     { idx.deals = c; hasDeals = true; }
+      }
+      if (hasSpend && hasDeals) {
+        var vr = rows[i + 1] || [];
+        d.health = {
+          spend:    toMoney(vr[idx.spend]),
+          leads:    toMoney(vr[idx.leads]),
+          cpl:      toMoney(vr[idx.cpl]),
+          viewings: toMoney(vr[idx.viewings]),
+          deals:    toMoney(vr[idx.deals])
+        };
+        return;
+      }
+    }
+  });
+}
+
 // ── MARKET UPDATES (scan every tab) ──────────────────────────────────────────
 // Showcase now comes from the Deliverables tab (Showcase? = Yes), built in
 // readDeliverables — the separate Showcase tab is no longer read.
@@ -332,15 +363,30 @@ function finalise(d) {
   d.risks     = (d._delayedMaterials || []).concat(d.risks || []);
   delete d._delayedMaterials;
 
-  var t = (d.paid && d.paid.total) || {};
-  function fmt(n) { n = n || 0; return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'K' : String(Math.round(n)); }
-  d.kpis = [
-    { v: fmt(t.spend),                              l: 'Paid spend (AED)',     tag: 'live'   },
-    { v: t.leads || 0,                              l: 'Leads (form+IF)',      tag: 'live'   },
-    { v: t.cpl   || 0,                              l: 'Blended CPL (AED)',    tag: 'live'   },
-    { v: (d.createdCount || 0) + '/' + (d.promised || 0), l: 'Deliverables',    tag: 'auto'   },
-    { v: d.deals || 0,                              l: 'Deals (dev-provided)', tag: 'manual' }
-  ];
+  function fmt(n)   { n = n || 0; return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'K' : String(Math.round(n)); }
+  function comma(n) { return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+  // KPI bar reads the manual "Total: Project health" tab (no live/auto tags).
+  var h = d.health;
+  if (h) {
+    d.kpis = [
+      { v: fmt(h.spend),      l: 'Spend (AED)' },
+      { v: comma(h.leads),    l: 'Leads (all sources)' },
+      { v: comma(h.cpl),      l: 'CPL (AED)' },
+      { v: comma(h.viewings), l: 'Total viewings' },
+      { v: comma(h.deals),    l: 'Deals' }
+    ];
+  } else {
+    // Fallback if the health tab isn't present yet.
+    var t = (d.paid && d.paid.total) || {};
+    d.kpis = [
+      { v: fmt(t.spend),                              l: 'Spend (AED)' },
+      { v: comma(t.leads),                            l: 'Leads (campaigns)' },
+      { v: comma(t.cpl),                              l: 'CPL (AED)' },
+      { v: (d.delivered || 0) + '/' + (d.total || 0), l: 'Deliverables' },
+      { v: comma(d.deals),                            l: 'Deals' }
+    ];
+  }
 }
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
