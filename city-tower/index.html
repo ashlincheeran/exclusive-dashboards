@@ -12,7 +12,17 @@ h1,h2,h3,h4{font-family:Georgia,"Times New Roman",serif;font-weight:600;letter-s
 .topbar{position:sticky;top:0;z-index:50;background:var(--slate);color:var(--cream-2);display:flex;align-items:center;gap:22px;padding:13px 28px;flex-wrap:wrap}
 .brand{font-family:Georgia,serif;font-size:20px;color:#fff}.brand b{font-weight:600}
 .topmeta{display:flex;gap:22px;margin-left:auto;flex-wrap:wrap;font-size:12px;color:var(--taupe)}.topmeta span{display:block;color:#fff;font-size:13.5px;font-weight:600}
-.phasepill{background:var(--dust);color:var(--slate);padding:5px 13px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.phasepill{background:var(--dust);color:var(--slate);padding:5px 13px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;user-select:none}.phasepill:hover{background:#fff}.phasepill::after{content:" ▾";font-size:9px}
+.histwrap{position:relative}
+.histmenu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;color:var(--slate);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.25);padding:8px;min-width:230px;z-index:60;display:none}
+.histmenu.open{display:block}
+.histmenu .hm-h{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--grey);font-weight:700;padding:6px 10px}
+.histmenu button{display:block;width:100%;text-align:left;background:none;border:0;padding:9px 10px;border-radius:8px;font-size:13px;color:var(--slate);cursor:pointer;font-family:inherit}
+.histmenu button:hover{background:var(--cream-2)}
+.histmenu button.cur{font-weight:700;color:var(--slate-2)}
+.histmenu .hm-save{border-top:1px solid var(--line);margin-top:6px;color:var(--slate-2);font-weight:700}
+.snapbanner{background:var(--warn-bg);border:1px solid var(--tan);color:var(--warn);border-radius:12px;padding:11px 16px;margin:16px 0 -8px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.snapbanner button{background:var(--slate);color:#fff;border:0;border-radius:16px;padding:6px 14px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
 .nav{position:sticky;top:54px;z-index:40;background:var(--cream-2);border-bottom:1px solid var(--line);display:flex;gap:2px;padding:0 18px;overflow-x:auto;white-space:nowrap}
 .nav a{padding:12px 12px;font-size:12px;font-weight:600;color:var(--grey);text-decoration:none;border-bottom:2px solid transparent}.nav a.active{color:var(--slate);border-bottom-color:var(--dust)}
 .wrap{max-width:1180px;margin:0 auto;padding:0 28px}
@@ -80,9 +90,11 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 </style></head><body>
 <div id="loader"><div class="spin"></div><p>Loading dashboard…</p></div>
 <div class="topbar"><div class="brand"><b>betterhomes</b> · Exclusive Projects</div>
-<div class="topmeta"><div>Project<span id="m-p"></span></div><div>Developer<span id="m-d"></span></div><div>Reporting<span id="m-m"></span></div><span class="phasepill" id="m-ph"></span></div></div>
+<div class="topmeta"><div>Project<span id="m-p"></span></div><div>Developer<span id="m-d"></span></div><div>Reporting<span id="m-m"></span></div>
+<div class="histwrap"><span class="phasepill" id="m-ph" onclick="toggleHistory(event)" title="View previous weekly versions"></span><div class="histmenu" id="histmenu"></div></div></div></div>
 <div class="nav" id="nav"><a href="#timeline">Timeline</a><a href="#health">Health</a><a href="#highlights">Highlights</a><a href="#delivery">Delivery</a><a href="#activity">Activity</a><a href="#marketing">Marketing</a><a href="#market">Market</a><a href="#next">Next Steps</a></div>
 <div class="wrap">
+<div class="snapbanner" id="snapbanner" style="display:none"></div>
 
 <section id="timeline" style="border-bottom:0;padding-top:8px"><div class="sec-head"><div class="eyebrow">Campaign timeline</div><h2>The four-phase journey</h2><p>Click any phase to open its summary report.</p></div><div class="timeline" id="tl"></div></section>
 
@@ -126,7 +138,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
    SHEET_API : the deployed Google Apps Script /exec URL (live sheet data).
    AI        : static seed shown on load; click "Refresh with Gemini" to regen.
    ========================================================================== */
-var SHEET_API = 'https://script.google.com/macros/s/AKfycbxFC5lxAiJmJJWRrZ21aO0ehwuVheJwwYrvievMcCRxg7GVjXTrHL_69-zU0HzjBQLx/exec';
+var SHEET_API = 'https://script.google.com/macros/s/AKfycbyZnnN0ZaQgFtKkPxCAY5nN7oqzVNzNOF2nVhuJbL02GPUEAUqwYa3TC7YajU_51utM/exec';
 var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=';
 // Built-in Gemini key (base64-encoded so it isn't stored as plaintext in the
 // repo). Decoded at runtime so the Refresh button works with no prompt. Note:
@@ -199,22 +211,109 @@ window.addEventListener('load', function () {
     showError('Apps Script URL not configured. Open city-tower/index.html and set SHEET_API to your deployed /exec URL.');
     return;
   }
-  fetch(SHEET_API)
+  loadLive();
+});
+
+// Load the current (live) data and render it.
+function loadLive() {
+  return fetch(SHEET_API)
     .then(function (r) { return r.json(); })
     .then(function (data) {
       if (data._error) throw new Error(data._error);
       data.ai = AI;
+      _viewingSnapshot = false;
+      $('snapbanner').style.display = 'none';
       render(data);
       $('loader').style.display = 'none';
     })
     .catch(function (e) {
       showError('Failed to load data — ' + (e.message || 'network error') + '. Check the Apps Script URL and that it is deployed as “Anyone” can access.');
     });
-});
+}
 
 function showError(msg) {
   $('loader').innerHTML = '<p style="color:var(--bad)">' + msg + '</p>';
 }
+
+/* ============================================================================
+   SNAPSHOT HISTORY — click the phase pill to view a previous weekly version
+   ========================================================================== */
+var _viewingSnapshot = false;
+
+function niceDate(iso) {
+  var p = String(iso || '').split('-');
+  if (p.length !== 3) return iso;
+  var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return (+p[2]) + ' ' + MO[(+p[1]) - 1] + ' ' + p[0];
+}
+
+function toggleHistory(ev) {
+  if (ev) ev.stopPropagation();
+  var menu = $('histmenu');
+  if (menu.classList.contains('open')) { menu.classList.remove('open'); return; }
+  menu.classList.add('open');
+  menu.innerHTML = '<div class="hm-h">Loading versions…</div>';
+  fetch(SHEET_API + '?list=1')
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      var snaps = (res && res.snapshots) || [];
+      var html = '<div class="hm-h">Dashboard versions</div>' +
+        '<button class="' + (_viewingSnapshot ? '' : 'cur') + '" onclick="backToLive()">● Live (this week)</button>' +
+        snaps.map(function (s) {
+          return '<button onclick="loadSnapshot(\'' + s.id + '\',\'' + s.date + '\')">' + niceDate(s.date) + '</button>';
+        }).join('') +
+        (snaps.length ? '' : '<div class="hm-h" style="color:var(--grey)">No snapshots saved yet.</div>') +
+        '<button class="hm-save" onclick="saveSnapshotNow(this)">＋ Save snapshot now</button>';
+      menu.innerHTML = html;
+    })
+    .catch(function () { menu.innerHTML = '<div class="hm-h" style="color:var(--bad)">Couldn’t load versions.</div>'; });
+}
+
+function loadSnapshot(id, date) {
+  $('histmenu').classList.remove('open');
+  $('loader').style.display = 'flex';
+  $('loader').innerHTML = '<div class="spin"></div><p>Loading snapshot…</p>';
+  fetch(SHEET_API + '?snapshot=' + encodeURIComponent(id))
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data._error) throw new Error(data._error);
+      data.ai = AI;
+      _viewingSnapshot = true;
+      render(data);
+      $('snapbanner').style.display = 'flex';
+      $('snapbanner').innerHTML = '<span>📅 Viewing the version saved on <b>' + niceDate(date) + '</b> — this is a historical snapshot, not live data.</span>' +
+        '<button onclick="backToLive()">Back to live</button>';
+      $('loader').style.display = 'none';
+      window.scrollTo(0, 0);
+    })
+    .catch(function (e) {
+      $('loader').innerHTML = '<p style="color:var(--bad)">Couldn’t load that snapshot — ' + (e.message || 'error') + '</p>';
+    });
+}
+
+function backToLive() {
+  $('histmenu').classList.remove('open');
+  $('loader').style.display = 'flex';
+  $('loader').innerHTML = '<div class="spin"></div><p>Loading dashboard…</p>';
+  loadLive();
+}
+
+function saveSnapshotNow(btn) {
+  btn.textContent = '⟳ Saving…';
+  fetch(SHEET_API + '?save=1')
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (!res || !res.saved) throw new Error((res && res._error) || 'save failed');
+      btn.textContent = '✓ Saved ' + niceDate(res.date);
+    })
+    .catch(function (e) { btn.textContent = '⚠ ' + (e.message || 'failed'); });
+}
+
+// Close the history menu when clicking elsewhere.
+document.addEventListener('click', function (e) {
+  var menu = $('histmenu');
+  if (menu && menu.classList.contains('open') && !e.target.closest('.histwrap')) menu.classList.remove('open');
+});
 
 /* ============================================================================
    RENDER — one function per section, all driven by live DATA
@@ -293,11 +392,14 @@ function renderHealth(DATA) {
   tx('h-title', (DATA.project || '') + ' — ' + (DATA.location || ''));
   tx('ovr', (DATA.overall || 0) + '%');
   try {
-    if (window.Chart) new Chart($('ring'), {
-      type: 'doughnut',
-      data: { datasets: [{ data: [DATA.overall || 0, 100 - (DATA.overall || 0)], backgroundColor: [C.dust, 'rgba(255,255,255,.18)'], borderWidth: 0 }] },
-      options: { cutout: '80%', plugins: { legend: { display: false }, tooltip: { enabled: false } }, responsive: false }
-    });
+    if (window.Chart) {
+      if (window._ringChart) window._ringChart.destroy();   // allow re-render (snapshots)
+      window._ringChart = new Chart($('ring'), {
+        type: 'doughnut',
+        data: { datasets: [{ data: [DATA.overall || 0, 100 - (DATA.overall || 0)], backgroundColor: [C.dust, 'rgba(255,255,255,.18)'], borderWidth: 0 }] },
+        options: { cutout: '80%', plugins: { legend: { display: false }, tooltip: { enabled: false } }, responsive: false }
+      });
+    }
   } catch (e) {}
   $('kpibar').innerHTML = (DATA.kpis || []).map(function (k) {
     return '<div class="kpi"><div class="v">' + k.v + '</div><div class="l">' + k.l + '</div></div>';
@@ -422,7 +524,9 @@ function renderCharts(camps) {
   var lbl = top.map(function (c) { return String(c.name).replace(/^C1-Tower-/, '').replace(/-LF.*/, ''); });
   try {
     if (!window.Chart) return;
-    new Chart($('paidChart'), {
+    if (window._paidChart)  window._paidChart.destroy();     // allow re-render (snapshots)
+    if (window._spendChart) window._spendChart.destroy();
+    window._paidChart = new Chart($('paidChart'), {
       type: 'bar',
       data: { labels: lbl, datasets: [
         { label: 'Leads', data: top.map(function (c) { return c.leads || 0; }), backgroundColor: C.dust, yAxisID: 'y', borderRadius: 4 },
@@ -432,7 +536,7 @@ function renderCharts(camps) {
         scales: { y: { title: { display: true, text: 'Leads' }, beginAtZero: true },
                   y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'CPL' }, beginAtZero: true } } }
     });
-    new Chart($('spendChart'), {
+    window._spendChart = new Chart($('spendChart'), {
       type: 'doughnut',
       data: { labels: lbl, datasets: [{ data: top.map(function (c) { return c.spend || 0; }), backgroundColor: [C.slate, C.blue, C.dust, C.tan, C.taupe, C.grey] }] },
       options: { maintainAspectRatio: false, cutout: '58%', plugins: { legend: { position: 'right' } } }
@@ -489,7 +593,7 @@ function initNav() {
     }
     links.forEach(function (l, i) { l.classList.toggle('active', i === idx); });
   }
-  window.addEventListener('scroll', onScroll, { passive: true });
+  if (!window._navBound) { window.addEventListener('scroll', onScroll, { passive: true }); window._navBound = true; }
   onScroll();
 }
 

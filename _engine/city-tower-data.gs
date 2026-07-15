@@ -19,25 +19,86 @@
 //   found in the sheet.
 // =============================================================================
 
-function doGet() {
+var SHEET_ID    = '1Y6KQOhEVUJILx4SBf8a4LeJGGvcMpTkludZtD1L6zuw';
+var SNAP_FOLDER = 'City Tower 1 — Dashboard Snapshots';
+
+// Build the full dashboard payload from the current sheet.
+function buildData() {
+  var ss    = SpreadsheetApp.openById(SHEET_ID);
+  var grids = ss.getSheets().map(function (sh) { return sh.getDataRange().getValues(); });
+
+  var d = {};
+  readMaster(grids, d);            // metadata, health, deliverables count, counter, notes
+  readDeliverables(grids, d);      // production assets → in-progress / upcoming / phase summaries
+  readSourceMaterials(grids, d);   // developer assets → delayed = blockers
+  readPaid(grids, d);              // Supermetrics campaigns + budget
+  readTimeline(grids, d);          // count of originally-promised activities
+  readHealth(grids, d);            // "Total: Project health" tab — manual all-source KPIs
+  readMarket(grids, d);            // market updates (showcase comes from Deliverables)
+  finalise(d);                     // derived fields: KPIs, decisions, risks, month name
+  return d;
+}
+
+// Web-app entry point. Modes (via query params):
+//   (none)        → live data
+//   ?list=1       → { snapshots: [{id, date}] }  (newest first)
+//   ?snapshot=ID  → the stored payload for that snapshot
+//   ?save=1       → take a snapshot now → { saved, date, id }
+function doGet(e) {
   try {
-    var ss    = SpreadsheetApp.openById('1Y6KQOhEVUJILx4SBf8a4LeJGGvcMpTkludZtD1L6zuw');
-    var grids = ss.getSheets().map(function (sh) { return sh.getDataRange().getValues(); });
-
-    var d = {};
-    readMaster(grids, d);            // metadata, health, deliverables count, counter, notes
-    readDeliverables(grids, d);      // production assets → in-progress / upcoming / phase summaries
-    readSourceMaterials(grids, d);   // developer assets → delayed = blockers
-    readPaid(grids, d);              // Supermetrics campaigns + budget
-    readTimeline(grids, d);          // count of originally-promised activities
-    readHealth(grids, d);            // "Total: Project health" tab — manual all-source KPIs
-    readMarket(grids, d);            // market updates (showcase comes from Deliverables)
-    finalise(d);                     // derived fields: KPIs, decisions, risks, month name
-
-    return jsonOut(d);
-  } catch (e) {
-    return jsonOut({ _error: String((e && e.message) || e) });
+    var p = (e && e.parameter) || {};
+    if (p.save)     return jsonOut(saveSnapshot());
+    if (p.list)     return jsonOut(listSnapshots());
+    if (p.snapshot) return jsonOut(getSnapshot(p.snapshot));
+    return jsonOut(buildData());
+  } catch (err) {
+    return jsonOut({ _error: String((err && err.message) || err) });
   }
+}
+
+// ── SNAPSHOTS (weekly history, stored as JSON files in Drive) ────────────────
+function snapFolder_() {
+  var it = DriveApp.getFoldersByName(SNAP_FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(SNAP_FOLDER);
+}
+function isoDate_() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+// Save a snapshot of the current dashboard. Called weekly by a trigger and by
+// the dashboard's "Save snapshot" button (?save=1). Re-running the same day
+// overwrites that day's file.
+function saveSnapshot() {
+  var d = buildData();
+  d.snapshotDate = isoDate_();
+  var folder = snapFolder_();
+  var name = 'city-tower-' + d.snapshotDate + '.json';
+  var dupes = folder.getFilesByName(name);
+  while (dupes.hasNext()) dupes.next().setTrashed(true);
+  var file = folder.createFile(name, JSON.stringify(d), 'application/json');
+  return { saved: true, date: d.snapshotDate, id: file.getId() };
+}
+
+function listSnapshots() {
+  var files = snapFolder_().getFiles(), out = [];
+  while (files.hasNext()) {
+    var f = files.next(), m = f.getName().match(/(\d{4}-\d{2}-\d{2})/);
+    out.push({ id: f.getId(), date: m ? m[1] : f.getName() });
+  }
+  out.sort(function (a, b) { return a.date < b.date ? 1 : -1; }); // newest first
+  return { snapshots: out };
+}
+
+function getSnapshot(id) {
+  return JSON.parse(DriveApp.getFileById(id).getBlob().getDataAsString());
+}
+
+// Run ONCE from the Apps Script editor to schedule an automatic weekly snapshot.
+function setupWeeklyTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'saveSnapshot') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('saveSnapshot').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(7).create();
 }
 
 // ── MASTER (control tab): metadata, health, counts, counter, notes ───────────
