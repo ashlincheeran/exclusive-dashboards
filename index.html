@@ -3,7 +3,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <title>betterhomes — Exclusive Project Dashboards</title>
 <style>
-:root{--slate:#1F343F;--blue:#2C537A;--dust:#7BA0B2;--tan:#D9B9A0;--cream:#EDE8E4;--cream2:#F4EFEB;--line:#DED6CD;--grey:#5C6B73}
+:root{--slate:#1F343F;--slate-2:#2C537A;--blue:#2C537A;--dust:#7BA0B2;--tan:#D9B9A0;--cream:#EDE8E4;--cream2:#F4EFEB;--line:#DED6CD;--grey:#5C6B73;--bad:#9C4A41}
 *{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--slate);font-family:"Helvetica Neue",Arial,sans-serif}
 h1,h2{font-family:Georgia,serif;font-weight:600}
 .top{background:var(--slate);color:#fff;padding:16px 30px;font-family:Georgia,serif;font-size:20px}.top b{font-weight:600}
@@ -17,7 +17,30 @@ h1{font-size:30px;margin:8px 0 6px}.sub{color:var(--grey);margin:0 0 28px;max-wi
 .b{padding:14px 16px}.b .m{font-size:12.5px;color:var(--grey)}.b .go{margin-top:8px;font-size:12px;font-weight:700;color:var(--blue)}
 .soon{opacity:.55;cursor:default}.soon .band{background:linear-gradient(135deg,#5C6B73,#D8CFC6)}.soon .go{color:var(--grey)}
 .foot{color:var(--grey);font-size:12px;margin-top:34px}
+/* PIN gate */
+#gate{position:fixed;inset:0;background:radial-gradient(120% 140% at 0% 0%,#2C537A 0%,#1F343F 60%);z-index:300;display:flex;align-items:center;justify-content:center;padding:24px}
+#gate .box{background:#fff;border-radius:18px;padding:34px 30px;max-width:360px;width:100%;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.45)}
+#gate .eyebrow{color:var(--dust);margin-bottom:10px}
+#gate h2{font-size:22px;margin:0 0 6px}
+#gate p{color:var(--grey);font-size:13px;margin:0 0 18px}
+#gate input{width:100%;font-size:24px;letter-spacing:.4em;text-align:center;padding:12px;border:1px solid var(--line);border-radius:10px;font-family:inherit}
+#gate input:focus{outline:none;border-color:var(--dust)}
+#gate button{margin-top:14px;width:100%;background:var(--slate);color:#fff;border:0;border-radius:10px;padding:12px;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+#gate button:hover{background:var(--slate-2)}
+#gate .err{color:var(--bad);font-size:12.5px;margin-top:10px;min-height:16px}
+#main{display:none}
 </style></head><body>
+
+<div id="gate"><div class="box">
+<div class="eyebrow">betterhomes · Exclusive Projects</div>
+<h2>Enter your access PIN</h2>
+<p>Enter your PIN to open your project dashboard.</p>
+<input id="gate-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="••••" onkeydown="if(event.key==='Enter')submitPin()"/>
+<button onclick="submitPin()">Unlock</button>
+<div class="err" id="gate-err"></div>
+</div></div>
+
+<div id="main">
 <div class="top"><b>betterhomes</b> · Exclusive Projects</div>
 <div class="wrap">
 <div class="eyebrow">Project operating dashboards</div>
@@ -28,5 +51,52 @@ h1{font-size:30px;margin:8px 0 6px}.sub{color:var(--grey);margin:0 0 28px;max-wi
   <div class="card soon"><div class="band">Next project</div><div class="b"><div class="m">Add a folder to publish a new dashboard</div><div class="go">Coming soon</div></div></div>
   <div class="card soon"><div class="band">Next project</div><div class="b"><div class="m">&nbsp;</div><div class="go">Coming soon</div></div></div>
 </div>
-<div class="foot">To add a project: drop a new <code>/project-name/index.html</code> into this repo — it auto-publishes at <code>/project-name</code>.</div>
-</div></body></html>
+<div class="foot">Admin view — you can open any project. To add a project: drop a new <code>/project-name/index.html</code> into this repo.</div>
+</div>
+</div>
+
+<script>
+/* ACCESS PINS (client-side gate). Admin sees the project list and can open any
+   project; a project PIN goes straight to that project and nowhere else.
+   Change a PIN by editing the value. NOTE: client-side — PINs are visible in
+   page source; suitable for share-gating, not hardened security. */
+var ACCESS = {
+  '1986': { role: 'admin' },
+  '1234': { role: 'project', project: 'City Tower 1', url: './city-tower/' }
+};
+
+function $(id){ return document.getElementById(id); }
+
+function projectUrl(name){
+  for (var pin in ACCESS){ var r = ACCESS[pin]; if (r.project === name && r.url) return r.url; }
+  return null;
+}
+
+// On load: honour an existing session unlock.
+(function(){
+  var acc = sessionStorage.getItem('bh_access');
+  if (acc === 'admin') { showGrid(); return; }
+  if (acc) {                                   // a project developer — go straight in
+    var u = projectUrl(acc);
+    if (u) { location.replace(u); return; }
+  }
+  // else: show the PIN gate (default)
+  var el = $('gate-pin'); if (el) el.focus();
+})();
+
+function showGrid(){ $('gate').style.display = 'none'; $('main').style.display = 'block'; }
+
+function submitPin(){
+  var pin = ($('gate-pin').value || '').trim();
+  var rec = ACCESS[pin];
+  if (!rec) { $('gate-err').textContent = 'Incorrect PIN.'; $('gate-pin').value=''; $('gate-pin').focus(); return; }
+  if (rec.role === 'admin') {
+    sessionStorage.setItem('bh_access', 'admin');
+    showGrid();
+  } else {                                      // project PIN → open only that project
+    sessionStorage.setItem('bh_access', rec.project);
+    location.href = rec.url;
+  }
+}
+</script>
+</body></html>
