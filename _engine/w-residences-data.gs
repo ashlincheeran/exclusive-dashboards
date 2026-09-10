@@ -6,7 +6,7 @@
 //   3. Click Deploy → New deployment → Web app
 //        Execute as: Me   |   Who has access: Anyone
 //   4. Click Deploy → copy the /exec URL it shows
-//   5. In city-tower/index.html, paste that URL as the value of SHEET_API
+//   5. In w-residences/index.html, paste that URL as the value of SHEET_API
 //
 // HOW IT WORKS:
 //   This script is CONTENT-DRIVEN. It scans every tab in the sheet and detects
