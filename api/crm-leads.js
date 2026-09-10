@@ -5,8 +5,9 @@
 //
 //   METABASE_URL      required, e.g. https://metabase.bhomes.com  (no trailing /)
 //   METABASE_API_KEY  preferred — Metabase → Admin → Authentication → API keys
-//   METABASE_USER     fallback, only used when no API key is set
-//   METABASE_PASS     fallback
+//   METABASE_USERNAME fallback, only used when no API key is set
+//                     (METABASE_USER also accepted)
+//   METABASE_PASSWORD fallback (METABASE_PASS also accepted)
 //   METABASE_DB_ID    optional, defaults to 14 (the "betterhomes" database)
 //
 // GET /api/crm-leads?campaign=<utm campaign code>&since=YYYY-MM-DD
@@ -23,8 +24,10 @@ async function authHeaders(base) {
   if (process.env.METABASE_API_KEY) {
     return { 'Content-Type': 'application/json', 'X-API-KEY': process.env.METABASE_API_KEY };
   }
-  const user = process.env.METABASE_USER, pass = process.env.METABASE_PASS;
-  if (!user || !pass) throw new Error('No METABASE_API_KEY and no METABASE_USER/METABASE_PASS set');
+  // Accept either naming convention for the fallback login.
+  const user = process.env.METABASE_USER || process.env.METABASE_USERNAME;
+  const pass = process.env.METABASE_PASS || process.env.METABASE_PASSWORD;
+  if (!user || !pass) throw new Error('No METABASE_API_KEY and no METABASE_USERNAME/METABASE_PASSWORD set');
 
   const r = await fetch(base + '/api/session', {
     method: 'POST',
