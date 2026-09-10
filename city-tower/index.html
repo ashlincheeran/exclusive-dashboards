@@ -53,6 +53,8 @@ section{padding:46px 0 8px;border-bottom:1px solid var(--line);scroll-margin-top
 .chip2{display:inline-flex;align-items:center;gap:6px;background:var(--cream-2);border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-size:12.5px;color:var(--slate-2);text-decoration:none;font-weight:600}.chip2:hover{background:#fff;border-color:var(--dust)}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
 th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--grey);font-weight:700}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+#ptab tr.grp td{background:var(--cream);color:var(--slate);font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+#ptab td.sub{padding-left:26px}
 .tag{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:12px}.t-good{background:var(--good-bg);color:var(--good)}.t-bad{background:var(--bad-bg);color:var(--bad)}.t-na{background:#ECE8E2;color:var(--grey)}
 .chartbox{position:relative;height:250px}
 .src{font-size:11px;color:var(--grey);margin-top:10px}.auto{color:var(--good);font-weight:700}
@@ -172,7 +174,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <div class="grid g4" id="pstat"></div>
 <div class="grid g2" style="margin-top:18px"><div class="card"><p class="eyebrow" style="color:var(--grey)">Leads &amp; CPL by campaign</p><div class="chartbox"><canvas id="paidChart"></canvas></div></div>
 <div class="card"><p class="eyebrow" style="color:var(--grey)">Spend by campaign</p><div class="chartbox"><canvas id="spendChart"></canvas></div></div></div>
-<div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Campaign detail</p><div style="max-height:220px;overflow:auto"><table><thead><tr><th>Campaign</th><th class="n">Spend</th><th class="n">Leads</th><th class="n">CPL</th></tr></thead><tbody id="ptab"></tbody></table></div><div class="src" id="gnote"></div></div>
+<div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Campaign detail</p><div style="max-height:360px;overflow:auto"><table><thead><tr><th>Campaign</th><th class="n">Spend</th><th class="n">Leads</th><th class="n">CPL</th></tr></thead><tbody id="ptab"></tbody></table></div><div class="src" id="gnote"></div></div>
 <div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Budget pacing — approved vs spent (incl. developer invoices)</p><table><thead><tr><th>Month</th><th class="n">Approved</th><th class="n">Spent</th><th class="n">Variance</th><th>Invoice paid</th></tr></thead><tbody id="budtab"></tbody></table></div>
 </section>
 
@@ -599,6 +601,15 @@ function renderActivity(DATA) {
   }).join('') || '<span class="src">No delivered work logged yet.</span>';
 }
 
+/* Platforms the campaign table groups by, in display order. `key` matches the
+   `ch` field each campaign carries: Meta and Google come from Supermetrics,
+   CRM from /api/crm-leads. */
+var PLATFORMS = [
+  { key: 'Meta',   label: 'Meta' },
+  { key: 'Google', label: 'Google' },
+  { key: 'CRM',    label: 'EDM — WhatsApp & Email' }
+];
+
 function renderMarketing(DATA) {
   var paid = DATA.paid || {}, t = paid.total || {};
   // This section is the paid-campaign (Supermetrics) view; all-source totals
@@ -606,7 +617,7 @@ function renderMarketing(DATA) {
   var stats = [
     ['Spend (AED)',            fmt(t.spend)],
     ['Leads from campaigns',   t.leads || 0],
-    ['Blended CPL — campaigns', t.cpl || 0],
+    ['Blended CPL — campaigns', t.cpl ? fmt(t.cpl) : '—'],
     ['Clicks',                 fmt(t.clicks)]
   ];
   $('pstat').innerHTML = stats.map(function (s) {
@@ -614,10 +625,28 @@ function renderMarketing(DATA) {
   }).join('');
 
   var camps = (paid.campaigns || []).slice().sort(function (a, b) { return (b.spend || 0) - (a.spend || 0); });
-  $('ptab').innerHTML = camps.map(function (c) {
-    return '<tr><td>' + String(c.name).replace(CAMPAIGN_STRIP, '') + '</td><td class="n">' + fmt(c.spend) +
-      '</td><td class="n">' + (c.leads || 0) + '</td><td class="n">' + (c.cpl ? Math.round(c.cpl) : '–') + '</td></tr>';
-  }).join('');
+  // Campaign detail is grouped by platform, each group led by its own subtotal.
+  function campRow(c) {
+    return '<tr><td class="sub">' + String(c.name).replace(CAMPAIGN_STRIP, '') + '</td><td class="n">' + fmt(c.spend) +
+      '</td><td class="n">' + (c.leads || 0) + '</td><td class="n">' + (c.cpl ? fmt(c.cpl) : '–') + '</td></tr>';
+  }
+  var rows = [], grouped = {};
+  PLATFORMS.forEach(function (p) {
+    var list = camps.filter(function (c) { return (c.ch || '') === p.key; });
+    if (!list.length) return;
+    var sp = 0, ld = 0;
+    list.forEach(function (c) { grouped[c.name] = 1; sp += c.spend || 0; ld += c.leads || 0; });
+    rows.push('<tr class="grp"><td>' + p.label + '</td><td class="n">' + fmt(sp) +
+      '</td><td class="n">' + ld + '</td><td class="n">' + (ld ? fmt(sp / ld) : '–') + '</td></tr>');
+    list.forEach(function (c) { rows.push(campRow(c)); });
+  });
+  // Anything on an unrecognised channel still shows rather than silently vanishing.
+  var other = camps.filter(function (c) { return !grouped[c.name]; });
+  if (other.length) {
+    rows.push('<tr class="grp"><td>Other</td><td class="n"></td><td class="n"></td><td class="n"></td></tr>');
+    other.forEach(function (c) { rows.push(campRow(c)); });
+  }
+  $('ptab').innerHTML = rows.join('') || '<tr><td colspan="4" class="src">No campaign data yet.</td></tr>';
   tx('gnote', paid.google ? ('Google: ' + paid.google) : '');
 
   $('budtab').innerHTML = (DATA.budget || []).map(function (b) {
@@ -714,7 +743,7 @@ function loadCrmLeads(DATA) {
       if (!res || res.error || !res.leads) return;          // nothing to add
       var p = DATA.paid || (DATA.paid = { campaigns: [], total: {} });
       p.campaigns = (p.campaigns || []).concat([{
-        ch: 'CRM', name: 'WhatsApp & Email (CRM)',
+        ch: 'CRM', name: 'WhatsApp & Email',
         spend: 0, impr: 0, clicks: 0, ctr: 0, cpc: 0,
         leads: res.leads, cpl: null
       }]);

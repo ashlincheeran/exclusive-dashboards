@@ -4,7 +4,10 @@
 <title>betterhomes — W Residences Dubai Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-:root{--slate:#1F343F;--slate-2:#2C537A;--grey:#5C6B73;--dust:#7BA0B2;--tan:#D9B9A0;--taupe:#D8CFC6;--cream:#EDE8E4;--cream-2:#F4EFEB;--white:#FFFFFF;--line:#DED6CD;--good:#3F6B52;--good-bg:#DCE8E0;--warn:#9A6A2E;--warn-bg:#F4E6D2;--bad:#9C4A41;--bad-bg:#F2DEDB;--shadow:0 1px 2px rgba(31,52,63,.06),0 10px 30px rgba(31,52,63,.08);}
+/* W Residences brand palette: #4E4249 (dark), #706D80 (purple), #A0ABC2
+   (periwinkle) and white. Neutrals are cooled to sit with them; the
+   good/warn/bad status colours stay recognisable but are desaturated to match. */
+:root{--slate:#4E4249;--slate-2:#635665;--grey:#706D80;--dust:#A0ABC2;--tan:#C0C7D8;--taupe:#C8C3CE;--cream:#F4F3F6;--cream-2:#FAF9FB;--white:#FFFFFF;--line:#E2DEE6;--good:#4C6B5C;--good-bg:#E1EAE4;--warn:#7E6647;--warn-bg:#EFE8DE;--bad:#8E4A52;--bad-bg:#F0E1E3;--shadow:0 1px 2px rgba(78,66,73,.06),0 10px 30px rgba(78,66,73,.10);}
 *{box-sizing:border-box}html{scroll-behavior:smooth}
 body{margin:0;background:var(--cream);color:var(--slate);font-family:"Helvetica Neue",Arial,sans-serif;font-size:15px;line-height:1.55}
 h1,h2,h3,h4{font-family:Georgia,"Times New Roman",serif;font-weight:600;letter-spacing:-.01em}
@@ -32,18 +35,18 @@ section{padding:46px 0 8px;border-bottom:1px solid var(--line);scroll-margin-top
 @media(max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr}}
 .card{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:var(--shadow)}.card.soft{background:var(--cream-2)}
 .timeline{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--white);box-shadow:var(--shadow);margin-top:26px}@media(max-width:900px){.timeline{grid-template-columns:1fr}}
-.tl{padding:18px;border-right:1px solid var(--line);position:relative;cursor:pointer;transition:background .15s}.tl:last-child{border-right:0}.tl:hover{background:var(--cream-2)}.tl.done{background:var(--cream-2)}.tl.now{background:linear-gradient(180deg,#eef4f6,#fff);box-shadow:inset 0 3px 0 var(--dust)}
+.tl{padding:18px;border-right:1px solid var(--line);position:relative;cursor:pointer;transition:background .15s}.tl:last-child{border-right:0}.tl:hover{background:var(--cream-2)}.tl.done{background:var(--cream-2)}.tl.now{background:linear-gradient(180deg,#EEF0F6,#fff);box-shadow:inset 0 3px 0 var(--dust)}
 .tl .mo{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--grey);font-weight:700}.tl h4{margin:5px 0 6px;font-size:15px}
 .tl .mini{height:6px;background:var(--cream);border-radius:4px;overflow:hidden}.tl .mini i{display:block;height:100%;background:var(--dust)}.tl .pc{color:var(--grey);font-size:12px;margin-top:5px}.tl .open{font-size:10.5px;color:var(--slate-2);font-weight:700;margin-top:6px}
 .youhere{position:absolute;top:-1px;right:9px;background:var(--dust);color:#fff;font-size:9px;font-weight:700;letter-spacing:.1em;padding:3px 7px;border-radius:0 0 8px 8px;text-transform:uppercase}
-.health{background:radial-gradient(120% 140% at 0% 0%,#2C537A 0%,#1F343F 60%);color:#fff;border-radius:18px;padding:30px 34px;margin-top:24px;box-shadow:var(--shadow);display:grid;grid-template-columns:190px 1fr;gap:32px;align-items:center}@media(max-width:900px){.health{grid-template-columns:1fr}}
+.health{background:radial-gradient(120% 140% at 0% 0%,#706D80 0%,#4E4249 60%);color:#fff;border-radius:18px;padding:30px 34px;margin-top:24px;box-shadow:var(--shadow);display:grid;grid-template-columns:190px 1fr;gap:32px;align-items:center}@media(max-width:900px){.health{grid-template-columns:1fr}}
 .ring{position:relative;width:175px;height:175px;margin:0 auto}.ring .lbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .ring .pct{font-family:Georgia,serif;font-size:44px;color:#fff}.ring .t{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--taupe);margin-top:3px}
 .health .eyebrow{color:var(--tan)}.health h1{font-size:26px;margin:6px 0 16px;color:#fff}
 .kpibar{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}@media(max-width:760px){.kpibar{grid-template-columns:repeat(2,1fr)}}
 .kpi{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:13px 14px}.kpi .v{font-family:Georgia,serif;font-size:24px;color:#fff;line-height:1}.kpi .l{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--taupe);margin-top:6px}
 .kpi .tg{font-size:8.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:1px 6px;border-radius:8px;margin-top:6px;display:inline-block}
-.tg-live{background:rgba(159,214,176,.25);color:#bfe6cb}.tg-manual{background:rgba(217,185,160,.28);color:#e7cdb4}.tg-auto{background:rgba(123,160,178,.28);color:#cfe0e6}
+.tg-live{background:rgba(160,171,194,.25);color:#C6CEDF}.tg-manual{background:rgba(200,195,206,.28);color:#DCD7E2}.tg-auto{background:rgba(160,171,194,.28);color:#CFD6E4}
 .num{font-family:Georgia,serif;font-size:13px;font-weight:700;color:#fff;background:var(--dust);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
 .card h3{font-size:17px;margin:0 0 6px}ul.clean{margin:6px 0 0;padding-left:18px;color:var(--grey);font-size:13.5px}ul.clean li{margin-bottom:7px}ul.clean li b{color:var(--slate)}
 .counter{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}@media(max-width:900px){.counter{grid-template-columns:repeat(2,1fr)}}
@@ -53,7 +56,9 @@ section{padding:46px 0 8px;border-bottom:1px solid var(--line);scroll-margin-top
 .chip2{display:inline-flex;align-items:center;gap:6px;background:var(--cream-2);border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-size:12.5px;color:var(--slate-2);text-decoration:none;font-weight:600}.chip2:hover{background:#fff;border-color:var(--dust)}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
 th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--grey);font-weight:700}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
-.tag{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:12px}.t-good{background:var(--good-bg);color:var(--good)}.t-bad{background:var(--bad-bg);color:var(--bad)}.t-na{background:#ECE8E2;color:var(--grey)}
+#ptab tr.grp td{background:var(--cream);color:var(--slate);font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+#ptab td.sub{padding-left:26px}
+.tag{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:12px}.t-good{background:var(--good-bg);color:var(--good)}.t-bad{background:var(--bad-bg);color:var(--bad)}.t-na{background:#EBE8EE;color:var(--grey)}
 .chartbox{position:relative;height:250px}
 .src{font-size:11px;color:var(--grey);margin-top:10px}.auto{color:var(--good);font-weight:700}
 .ai{background:var(--white);border:1px solid var(--line);border-left:4px solid var(--tan);border-radius:14px;padding:22px 24px;box-shadow:var(--shadow);margin-top:18px}
@@ -68,10 +73,10 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 .shelf::-webkit-scrollbar{height:8px}.shelf::-webkit-scrollbar-thumb{background:var(--taupe);border-radius:4px}
 .shelf .sc{flex:0 0 230px;scroll-snap-align:start}@media(max-width:560px){.shelf .sc{flex:0 0 78%}}
 .sc{background:var(--white);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
-.sc .thumb{aspect-ratio:1/1;background:#e9eef1 center/cover no-repeat;display:flex;align-items:center;justify-content:center;position:relative}
+.sc .thumb{aspect-ratio:1/1;background:#EAE7EE center/cover no-repeat;display:flex;align-items:center;justify-content:center;position:relative}
 .sc a.thumblink{display:block;text-decoration:none}
-.sc .band{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:13px;color:#fff;letter-spacing:.08em;text-transform:uppercase;background:linear-gradient(135deg,#2C537A,#7BA0B2)}
-.sc .band.v{background:linear-gradient(135deg,#1F343F,#5C6B73)}.sc .band.p{background:linear-gradient(135deg,#9A6A2E,#D9B9A0)}
+.sc .band{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:13px;color:#fff;letter-spacing:.08em;text-transform:uppercase;background:linear-gradient(135deg,#706D80,#A0ABC2)}
+.sc .band.v{background:linear-gradient(135deg,#4E4249,#706D80)}.sc .band.p{background:linear-gradient(135deg,#8C7F8C,#C0C7D8)}
 .sc .nmtag{position:absolute;top:8px;left:8px;background:rgba(31,52,63,.82);color:#fff;font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:8px;max-width:88%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sc .b{padding:12px 14px;flex:1;display:flex;flex-direction:column;gap:5px}.sc .tag2{font-size:10px;color:var(--grey);text-transform:uppercase;letter-spacing:.08em}.sc .cap{font-size:12.5px;color:var(--slate)}
 .sc a{margin-top:auto;font-size:12px;font-weight:700;color:var(--slate-2);text-decoration:none}.sc a:hover{text-decoration:underline}
@@ -87,7 +92,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 #loader .spin{width:36px;height:36px;border:3px solid var(--line);border-top-color:var(--dust);border-radius:50%;animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 #loader p{font-size:13px;color:var(--grey);margin:0;max-width:480px}
-#gate{position:fixed;inset:0;background:radial-gradient(120% 140% at 0% 0%,#2C537A 0%,#1F343F 60%);z-index:300;display:none;align-items:center;justify-content:center;padding:24px}
+#gate{position:fixed;inset:0;background:radial-gradient(120% 140% at 0% 0%,#706D80 0%,#4E4249 60%);z-index:300;display:none;align-items:center;justify-content:center;padding:24px}
 #gate .box{background:#fff;border-radius:18px;padding:34px 30px;max-width:360px;width:100%;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.45)}
 #gate .eyebrow{color:var(--dust);margin-bottom:10px}
 #gate h2{font-size:22px;margin:0 0 6px}
@@ -107,7 +112,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 .sk-on #pstat:empty,.sk-on #shelf:empty,.sk-on #mkbox:empty,.sk-on #n-up:empty,
 .sk-on #ai-calls:empty,.sk-on #ai-body:empty,.sk-on #act-sub:empty{
   display:block;border-radius:14px;
-  background:linear-gradient(90deg,#e6e0d9 25%,#f4f0ec 37%,#e6e0d9 63%);
+  background:linear-gradient(90deg,#E4E1E8 25%,#F3F1F6 37%,#E4E1E8 63%);
   background-size:900px 100%;animation:shim 1.5s infinite linear}
 .sk-on #tl:empty{min-height:150px;margin-top:26px}
 .sk-on #highgrid:empty{min-height:150px}
@@ -172,7 +177,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <div class="grid g4" id="pstat"></div>
 <div class="grid g2" style="margin-top:18px"><div class="card"><p class="eyebrow" style="color:var(--grey)">Leads &amp; CPL by campaign</p><div class="chartbox"><canvas id="paidChart"></canvas></div></div>
 <div class="card"><p class="eyebrow" style="color:var(--grey)">Spend by campaign</p><div class="chartbox"><canvas id="spendChart"></canvas></div></div></div>
-<div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Campaign detail</p><div style="max-height:220px;overflow:auto"><table><thead><tr><th>Campaign</th><th class="n">Spend</th><th class="n">Leads</th><th class="n">CPL</th></tr></thead><tbody id="ptab"></tbody></table></div><div class="src" id="gnote"></div></div>
+<div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Campaign detail</p><div style="max-height:360px;overflow:auto"><table><thead><tr><th>Campaign</th><th class="n">Spend</th><th class="n">Leads</th><th class="n">CPL</th></tr></thead><tbody id="ptab"></tbody></table></div><div class="src" id="gnote"></div></div>
 <div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Budget pacing — approved vs spent (incl. developer invoices)</p><table><thead><tr><th>Month</th><th class="n">Approved</th><th class="n">Spent</th><th class="n">Variance</th><th>Invoice paid</th></tr></thead><tbody id="budtab"></tbody></table></div>
 </section>
 
@@ -265,7 +270,7 @@ var META = {
 /* ============================================================================
    HELPERS
    ========================================================================== */
-var C = { slate:'#1F343F', blue:'#2C537A', dust:'#7BA0B2', tan:'#D9B9A0', taupe:'#D8CFC6', grey:'#5C6B73' };
+var C = { slate:'#4E4249', blue:'#706D80', dust:'#A0ABC2', tan:'#8C7F8C', taupe:'#C8C3CE', grey:'#8A8794' };
 if (window.Chart) { Chart.defaults.font.family = "'Helvetica Neue',Arial,sans-serif"; Chart.defaults.color = C.grey; }
 
 function $(id) { return document.getElementById(id); }
@@ -599,6 +604,15 @@ function renderActivity(DATA) {
   }).join('') || '<span class="src">No delivered work logged yet.</span>';
 }
 
+/* Platforms the campaign table groups by, in display order. `key` matches the
+   `ch` field each campaign carries: Meta and Google come from Supermetrics,
+   CRM from /api/crm-leads. */
+var PLATFORMS = [
+  { key: 'Meta',   label: 'Meta' },
+  { key: 'Google', label: 'Google' },
+  { key: 'CRM',    label: 'EDM — WhatsApp & Email' }
+];
+
 function renderMarketing(DATA) {
   var paid = DATA.paid || {}, t = paid.total || {};
   // This section is the paid-campaign (Supermetrics) view; all-source totals
@@ -606,7 +620,7 @@ function renderMarketing(DATA) {
   var stats = [
     ['Spend (AED)',            fmt(t.spend)],
     ['Leads from campaigns',   t.leads || 0],
-    ['Blended CPL — campaigns', t.cpl || 0],
+    ['Blended CPL — campaigns', t.cpl ? fmt(t.cpl) : '—'],
     ['Clicks',                 fmt(t.clicks)]
   ];
   $('pstat').innerHTML = stats.map(function (s) {
@@ -614,10 +628,28 @@ function renderMarketing(DATA) {
   }).join('');
 
   var camps = (paid.campaigns || []).slice().sort(function (a, b) { return (b.spend || 0) - (a.spend || 0); });
-  $('ptab').innerHTML = camps.map(function (c) {
-    return '<tr><td>' + String(c.name).replace(CAMPAIGN_STRIP, '') + '</td><td class="n">' + fmt(c.spend) +
-      '</td><td class="n">' + (c.leads || 0) + '</td><td class="n">' + (c.cpl ? Math.round(c.cpl) : '–') + '</td></tr>';
-  }).join('');
+  // Campaign detail is grouped by platform, each group led by its own subtotal.
+  function campRow(c) {
+    return '<tr><td class="sub">' + String(c.name).replace(CAMPAIGN_STRIP, '') + '</td><td class="n">' + fmt(c.spend) +
+      '</td><td class="n">' + (c.leads || 0) + '</td><td class="n">' + (c.cpl ? fmt(c.cpl) : '–') + '</td></tr>';
+  }
+  var rows = [], grouped = {};
+  PLATFORMS.forEach(function (p) {
+    var list = camps.filter(function (c) { return (c.ch || '') === p.key; });
+    if (!list.length) return;
+    var sp = 0, ld = 0;
+    list.forEach(function (c) { grouped[c.name] = 1; sp += c.spend || 0; ld += c.leads || 0; });
+    rows.push('<tr class="grp"><td>' + p.label + '</td><td class="n">' + fmt(sp) +
+      '</td><td class="n">' + ld + '</td><td class="n">' + (ld ? fmt(sp / ld) : '–') + '</td></tr>');
+    list.forEach(function (c) { rows.push(campRow(c)); });
+  });
+  // Anything on an unrecognised channel still shows rather than silently vanishing.
+  var other = camps.filter(function (c) { return !grouped[c.name]; });
+  if (other.length) {
+    rows.push('<tr class="grp"><td>Other</td><td class="n"></td><td class="n"></td><td class="n"></td></tr>');
+    other.forEach(function (c) { rows.push(campRow(c)); });
+  }
+  $('ptab').innerHTML = rows.join('') || '<tr><td colspan="4" class="src">No campaign data yet.</td></tr>';
   tx('gnote', paid.google ? ('Google: ' + paid.google) : '');
 
   $('budtab').innerHTML = (DATA.budget || []).map(function (b) {
@@ -714,7 +746,7 @@ function loadCrmLeads(DATA) {
       if (!res || res.error || !res.leads) return;          // nothing to add
       var p = DATA.paid || (DATA.paid = { campaigns: [], total: {} });
       p.campaigns = (p.campaigns || []).concat([{
-        ch: 'CRM', name: 'WhatsApp & Email (CRM)',
+        ch: 'CRM', name: 'WhatsApp & Email',
         spend: 0, impr: 0, clicks: 0, ctr: 0, cpc: 0,
         leads: res.leads, cpl: null
       }]);
