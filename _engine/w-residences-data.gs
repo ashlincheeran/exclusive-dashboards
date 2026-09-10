@@ -1,4 +1,4 @@
-// City Tower 1 — Live Dashboard Data API
+// W Residences Dubai (JLT) — Live Dashboard Data API
 // =============================================================================
 // ONE-TIME SETUP (5 minutes):
 //   1. In your Google Sheet → Extensions → Apps Script
@@ -6,7 +6,7 @@
 //   3. Click Deploy → New deployment → Web app
 //        Execute as: Me   |   Who has access: Anyone
 //   4. Click Deploy → copy the /exec URL it shows
-//   5. In city-tower/index.html, paste that URL as the value of SHEET_API
+//   5. In w-residences/index.html, paste that URL as the value of SHEET_API
 //
 // HOW IT WORKS:
 //   This script is CONTENT-DRIVEN. It scans every tab in the sheet and detects
@@ -19,8 +19,8 @@
 //   found in the sheet.
 // =============================================================================
 
-var SHEET_ID    = '1Y6KQOhEVUJILx4SBf8a4LeJGGvcMpTkludZtD1L6zuw';
-var SNAP_FOLDER = 'City Tower 1 — Dashboard Snapshots';
+var SHEET_ID    = '1LTlagelAhU-Ifyn5rARyy0jechCc8p0iS487-JZnXmU';
+var SNAP_FOLDER = 'W Residences Dubai — Dashboard Snapshots';
 
 // Build the full dashboard payload from the current sheet.
 function buildData() {
@@ -71,7 +71,7 @@ function saveSnapshot() {
   var d = buildData();
   d.snapshotDate = isoDate_();
   var folder = snapFolder_();
-  var name = 'city-tower-' + d.snapshotDate + '.json';
+  var name = 'w-residences-' + d.snapshotDate + '.json';
   var dupes = folder.getFilesByName(name);
   while (dupes.hasNext()) dupes.next().setTrashed(true);
   var file = folder.createFile(name, JSON.stringify(d), 'application/json');
@@ -315,22 +315,22 @@ function readPaidFromSupermetrics(d) {
   var key = props.getProperty('SM_API_KEY');
   if (!key) return;                                  // not configured → keep sheet data
 
-  var start = props.getProperty('SM_START_DATE') || '2026-04-01';
+  var start = props.getProperty('SM_START_DATE') || '2026-09-01';
   var end   = isoDate_();
   var errs  = [];
 
   var meta = smFetch_(key, errs, {
     ch: 'Meta', ds_id: 'FA', start: start, end: end,
-    accounts: [props.getProperty('SM_ACCOUNT') || 'act_9508663712551146'],
+    accounts: [props.getProperty('SM_ACCOUNT') || 'act_2029551921300421'],
     fields: ['adcampaign_name', 'cost', 'impressions', 'Clicks', 'onsite_conversion.lead_grouped'],
-    match: props.getProperty('SM_CAMPAIGN_MATCH') || 'C1-Tower'
+    match: props.getProperty('SM_CAMPAIGN_MATCH') || 'WResidences'
   });
 
   var google = smFetch_(key, errs, {
     ch: 'Google', ds_id: 'AW', start: start, end: end,
     accounts: (props.getProperty('SM_GOOGLE_ACCOUNTS') || '1174729952,5063000241').split(','),
     fields: ['campaign', 'cost', 'impressions', 'clicks', 'conversions'],
-    match: props.getProperty('SM_GOOGLE_MATCH') || 'CT1'
+    match: props.getProperty('SM_GOOGLE_MATCH') || 'WRES'
   });
 
   // Google should always be visible, even before it launches — show a zero row.
@@ -349,7 +349,7 @@ function readPaidFromSupermetrics(d) {
 
   d.paid = {
     total: {
-      ch: 'All', name: 'TOTAL — City Tower (Meta + Google)',
+      ch: 'All', name: 'TOTAL — W Residences (Meta + Google)',
       spend: t.spend, impr: t.impr, clicks: t.clicks,
       ctr: t.impr ? t.clicks / t.impr : 0,
       cpc: t.clicks ? t.spend / t.clicks : 0,
