@@ -33,7 +33,6 @@ function buildData() {
   readSourceMaterials(grids, d);   // developer assets → delayed = blockers
   readPaid(grids, d);              // Supermetrics campaigns + budget
   readTimeline(grids, d);          // count of originally-promised activities
-  readHealth(grids, d);            // "Total: Project health" tab — manual all-source KPIs
   readMarket(grids, d);            // market updates (showcase comes from Deliverables)
   finalise(d);                     // derived fields: KPIs, decisions, risks, month name
   return d;
@@ -301,70 +300,111 @@ function readPaid(grids, d) {
   readPaidFromSupermetrics(d);       // overrides d.paid when SM_API_KEY is set
 }
 
-// Live Meta campaign performance via the Supermetrics REST API.
-// Configure in Apps Script → Project Settings → Script Properties:
-//   SM_API_KEY        (required)  your Supermetrics API key
-//   SM_ACCOUNT        (optional)  Meta ad account, default = City Tower's
-//   SM_DS_USER        (optional)  Supermetrics connection id
-//   SM_DATE_RANGE     (optional)  e.g. last_365_days, last_90_days, this_month
-//   SM_CAMPAIGN_MATCH (optional)  only campaigns whose name contains this
+// Live paid performance via the Supermetrics REST API — Meta + Google Ads.
+// Script Properties (Apps Script → Project Settings):
+//   SM_API_KEY         (required) Supermetrics API key
+//   SM_START_DATE      (optional) campaign start, default below — anything
+//                                 before this date is excluded
+//   SM_ACCOUNT         (optional) Meta ad account
+//   SM_CAMPAIGN_MATCH  (optional) Meta campaign name must contain this
+//   SM_GOOGLE_ACCOUNTS (optional) comma-separated Google Ads account ids
+//   SM_GOOGLE_MATCH    (optional) Google campaign name must contain this
+//   SM_DS_USER         (optional) Supermetrics connection id
 function readPaidFromSupermetrics(d) {
   var props = PropertiesService.getScriptProperties();
   var key = props.getProperty('SM_API_KEY');
-  if (!key) return;                                   // not configured → keep sheet data
+  if (!key) return;                                  // not configured → keep sheet data
 
-  try {
-    var payload = {
-      ds_id: 'FA',
-      ds_accounts: [props.getProperty('SM_ACCOUNT') || 'act_9508663712551146'],
-      ds_user: props.getProperty('SM_DS_USER') || '122111799831053725',
-      date_range_type: props.getProperty('SM_DATE_RANGE') || 'last_365_days',
-      fields: ['adcampaign_name', 'cost', 'impressions', 'Clicks', 'onsite_conversion.lead_grouped'],
-      max_rows: 500,
-      api_key: key
-    };
-    var url = 'https://api.supermetrics.com/enterprise/v2/query/data/json?json=' +
-              encodeURIComponent(JSON.stringify(payload));
-    var resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-    var body = JSON.parse(resp.getContentText());
-    var rows = body && body.data;
-    if (!rows || rows.length < 2) {
-      d.paidError = 'Supermetrics: ' + ((body && body.meta && body.meta.status_code) || 'no data');
-      return;                                          // keep sheet fallback
-    }
+  var start = props.getProperty('SM_START_DATE') || '2026-04-01';
+  var end   = isoDate_();
+  var errs  = [];
 
-    var match = props.getProperty('SM_CAMPAIGN_MATCH') || 'C1-Tower';
-    var campaigns = [], t = { spend: 0, impr: 0, clicks: 0, leads: 0 };
-    for (var i = 1; i < rows.length; i++) {            // row 0 = header
-      var r = rows[i];
-      var name = String(r[0] || '');
-      if (match && name.indexOf(match) === -1) continue;
-      var spend = toMoney(r[1]), impr = toMoney(r[2]), clicks = toMoney(r[3]), leads = toMoney(r[4]);
-      campaigns.push({
-        ch: 'Meta', name: name,
-        spend: spend, impr: impr, clicks: clicks,
-        ctr: impr ? clicks / impr : 0,
-        cpc: clicks ? spend / clicks : 0,
-        leads: leads,
-        cpl: leads ? spend / leads : null
-      });
-      t.spend += spend; t.impr += impr; t.clicks += clicks; t.leads += leads;
-    }
-    if (!campaigns.length) { d.paidError = 'Supermetrics: no campaigns matched "' + match + '"'; return; }
+  var meta = smFetch_(key, errs, {
+    ch: 'Meta', ds_id: 'FA', start: start, end: end,
+    accounts: [props.getProperty('SM_ACCOUNT') || 'act_9508663712551146'],
+    fields: ['adcampaign_name', 'cost', 'impressions', 'Clicks', 'onsite_conversion.lead_grouped'],
+    match: props.getProperty('SM_CAMPAIGN_MATCH') || 'C1-Tower'
+  });
 
-    campaigns.sort(function (a, b) { return b.spend - a.spend; });
-    var total = {
-      ch: 'Meta', name: 'TOTAL — City Tower (Meta)',
+  var google = smFetch_(key, errs, {
+    ch: 'Google', ds_id: 'AW', start: start, end: end,
+    accounts: (props.getProperty('SM_GOOGLE_ACCOUNTS') || '1174729952,5063000241').split(','),
+    fields: ['campaign', 'cost', 'impressions', 'clicks', 'conversions'],
+    match: props.getProperty('SM_GOOGLE_MATCH') || 'CT1'
+  });
+
+  // Google should always be visible, even before it launches — show a zero row.
+  if (!google.length) {
+    google = [{ ch: 'Google', name: 'Google Ads — no spend yet',
+                spend: 0, impr: 0, clicks: 0, ctr: 0, cpc: 0, leads: 0, cpl: null }];
+  }
+
+  // Only fall back to the sheet if Meta itself failed.
+  if (!meta.length && errs.length) { d.paidError = errs.join(' | '); return; }
+
+  var campaigns = meta.concat(google);
+  var t = { spend: 0, impr: 0, clicks: 0, leads: 0 };
+  campaigns.forEach(function (c) { t.spend += c.spend; t.impr += c.impr; t.clicks += c.clicks; t.leads += c.leads; });
+  campaigns.sort(function (a, b) { return b.spend - a.spend; });
+
+  d.paid = {
+    total: {
+      ch: 'All', name: 'TOTAL — City Tower (Meta + Google)',
       spend: t.spend, impr: t.impr, clicks: t.clicks,
       ctr: t.impr ? t.clicks / t.impr : 0,
       cpc: t.clicks ? t.spend / t.clicks : 0,
       leads: t.leads,
       cpl: t.leads ? t.spend / t.leads : null
+    },
+    campaigns: campaigns,
+    google: ''
+  };
+  d.paidSource = 'supermetrics';
+  d.paidWindow = start + ' → ' + end;
+  if (errs.length) d.paidError = errs.join(' | ');
+}
+
+// One Supermetrics query → array of campaign rows (or [] with errs appended).
+function smFetch_(key, errs, q) {
+  try {
+    var payload = {
+      ds_id: q.ds_id,
+      ds_accounts: q.accounts,
+      ds_user: PropertiesService.getScriptProperties().getProperty('SM_DS_USER') || '122111799831053725',
+      date_range_type: 'custom',
+      start_date: q.start,
+      end_date: q.end,
+      fields: q.fields,
+      max_rows: 500,
+      api_key: key
     };
-    d.paid = { total: total, campaigns: campaigns, google: (d.paid && d.paid.google) || '' };
-    d.paidSource = 'supermetrics';
+    var url = 'https://api.supermetrics.com/enterprise/v2/query/data/json?json=' +
+              encodeURIComponent(JSON.stringify(payload));
+    var body = JSON.parse(UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText());
+    var rows = body && body.data;
+    if (!rows || rows.length < 2) {
+      var code = String((body && body.meta && body.meta.status_code) || 'NO_DATA');
+      if (code.toUpperCase() !== 'SUCCESS') errs.push(q.ch + ': ' + code);
+      return [];                                     // no campaigns in range = fine
+    }
+    var out = [];
+    for (var i = 1; i < rows.length; i++) {          // row 0 = header
+      var r = rows[i];
+      var name = String(r[0] || '');
+      if (q.match && name.indexOf(q.match) === -1) continue;
+      var spend = toMoney(r[1]), impr = toMoney(r[2]), clicks = toMoney(r[3]), leads = toMoney(r[4]);
+      out.push({
+        ch: q.ch, name: name, spend: spend, impr: impr, clicks: clicks,
+        ctr: impr ? clicks / impr : 0,
+        cpc: clicks ? spend / clicks : 0,
+        leads: leads,
+        cpl: leads ? spend / leads : null
+      });
+    }
+    return out;
   } catch (e) {
-    d.paidError = 'Supermetrics error: ' + ((e && e.message) || e);   // keep sheet fallback
+    errs.push(q.ch + ' error: ' + ((e && e.message) || e));
+    return [];
   }
 }
 
@@ -437,36 +477,6 @@ function readTimeline(grids, d) {
   d.promised = promised;
 }
 
-// ── TOTAL: PROJECT HEALTH tab — manual all-source KPI block ──────────────────
-// Header row has "Spend (AED)" … "Deals"; the row directly below holds the
-// manually-entered values. Column positions are detected, not assumed.
-function readHealth(grids, d) {
-  grids.forEach(function (rows) {
-    for (var i = 0; i < rows.length; i++) {
-      var r = rows[i], idx = {}, hasSpend = false, hasDeals = false;
-      for (var c = 0; c < r.length; c++) {
-        var v = sv(r[c]);
-        if (v === 'Spend (AED)')    { idx.spend = c; hasSpend = true; }
-        else if (v === 'Leads')     { idx.leads = c; }
-        else if (v === 'CPL (AED)') { idx.cpl = c; }
-        else if (v === 'Total viewings') { idx.viewings = c; }
-        else if (v === 'Deals')     { idx.deals = c; hasDeals = true; }
-      }
-      if (hasSpend && hasDeals) {
-        var vr = rows[i + 1] || [];
-        d.health = {
-          spend:    toMoney(vr[idx.spend]),
-          leads:    toMoney(vr[idx.leads]),
-          cpl:      toMoney(vr[idx.cpl]),
-          viewings: toMoney(vr[idx.viewings]),
-          deals:    toMoney(vr[idx.deals])
-        };
-        return;
-      }
-    }
-  });
-}
-
 // ── MARKET UPDATES (scan every tab) ──────────────────────────────────────────
 // Showcase now comes from the Deliverables tab (Showcase? = Yes), built in
 // readDeliverables — the separate Showcase tab is no longer read.
@@ -504,26 +514,16 @@ function finalise(d) {
   function comma(n) { return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 
   // KPI bar reads the manual "Total: Project health" tab (no live/auto tags).
-  var h = d.health;
-  if (h) {
-    d.kpis = [
-      { v: fmt(h.spend),      l: 'Spend (AED)' },
-      { v: comma(h.leads),    l: 'Leads (all sources)' },
-      { v: comma(h.cpl),      l: 'CPL (AED)' },
-      { v: comma(h.viewings), l: 'Total viewings' },
-      { v: comma(h.deals),    l: 'Deals' }
-    ];
-  } else {
-    // Fallback if the health tab isn't present yet.
-    var t = (d.paid && d.paid.total) || {};
-    d.kpis = [
-      { v: fmt(t.spend),                              l: 'Spend (AED)' },
-      { v: comma(t.leads),                            l: 'Leads (campaigns)' },
-      { v: comma(t.cpl),                              l: 'CPL (AED)' },
-      { v: (d.delivered || 0) + '/' + (d.total || 0), l: 'Deliverables' },
-      { v: comma(d.deals),                            l: 'Deals' }
-    ];
-  }
+  // KPI bar is built from the live Supermetrics pull (Meta + Google). Deals is
+  // the only manual figure and comes from the Master tab.
+  var t = (d.paid && d.paid.total) || {};
+  d.kpis = [
+    { v: fmt(t.spend),                 l: 'Spend (AED)' },
+    { v: comma(t.leads),               l: 'Leads (paid)' },
+    { v: t.leads ? comma(t.cpl) : '—', l: 'CPL (AED)' },
+    { v: fmt(t.clicks),                l: 'Clicks' },
+    { v: comma(d.deals),               l: 'Deals' }
+  ];
 }
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
