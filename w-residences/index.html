@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/><meta http-equiv="Pragma" content="no-cache"/><meta http-equiv="Expires" content="0"/>
-<title>betterhomes — City Tower 1 Dashboard</title>
+<title>betterhomes — W Residences Dubai Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{--slate:#1F343F;--slate-2:#2C537A;--grey:#5C6B73;--dust:#7BA0B2;--tan:#D9B9A0;--taupe:#D8CFC6;--cream:#EDE8E4;--cream-2:#F4EFEB;--white:#FFFFFF;--line:#DED6CD;--good:#3F6B52;--good-bg:#DCE8E0;--warn:#9A6A2E;--warn-bg:#F4E6D2;--bad:#9C4A41;--bad-bg:#F2DEDB;--shadow:0 1px 2px rgba(31,52,63,.06),0 10px 30px rgba(31,52,63,.08);}
@@ -156,7 +156,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
    SHEET_API : the deployed Google Apps Script /exec URL (live sheet data).
    AI        : static seed shown on load; click "Refresh with Gemini" to regen.
    ========================================================================== */
-var SHEET_API = 'https://script.google.com/macros/s/AKfycbyZnnN0ZaQgFtKkPxCAY5nN7oqzVNzNOF2nVhuJbL02GPUEAUqwYa3TC7YajU_51utM/exec';
+var SHEET_API = 'PASTE_SCRIPT_URL_HERE';   // ← W Residences Apps Script /exec URL
 var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=';
 // Built-in Gemini key (base64-encoded so it isn't stored as plaintext in the
 // repo). Decoded at runtime so the Refresh button works with no prompt. Note:
@@ -170,41 +170,41 @@ var APIFY_TOKEN = atob('YXBpZnlfYXBpX1hOOXFHc0wwUlVnOVZ6bWJHdUNmeUZhSWxXdmdYUDRm
 var APIFY_ACTOR = 'apify~google-search-scraper';
 
 /* ACCESS PINS (client-side gate) ----------------------------------------------
-   This page serves the "City Tower 1" project. An 'admin' PIN unlocks any
+   This page serves the "W Residences Dubai" project. An 'admin' PIN unlocks any
    project; a 'project' PIN unlocks only its own project. To change a PIN, edit
    the value below. NOTE: because this is checked in the browser, the PINs are
    visible in the page source — fine for share-gating, not bank-grade security. */
-var THIS_PROJECT = 'City Tower 1';
+var THIS_PROJECT = 'W Residences Dubai';
 var ACCESS = {
   '1986': { role: 'admin' },
-  '1234': { role: 'project', project: 'City Tower 1' }
+  '5678': { role: 'project', project: 'W Residences Dubai' }
 };
 
 /* PROJECT CONFIG — the only per-project values on this page.
    PROJECT_ENTITIES : search terms used to find news about this project
    PROJECT_TERMS    : lowercase terms an article must mention to be kept
    CAMPAIGN_STRIP   : trimmed off campaign names for readable chart labels */
-var PROJECT_ENTITIES = ['City Tower', 'H&H Properties', 'H and H Properties',
-                        'Bright Start', 'DIFC', 'Sheikh Zayed Road'];
-var PROJECT_TERMS    = ['h&h', 'h and h', 'bright start', 'bright star',
-                        'difc', 'sheikh zayed'];
-var CAMPAIGN_STRIP   = /^.*?C1-Tower-?/i;
+var PROJECT_ENTITIES = ['W Residences', 'W Residences Dubai', 'Signature Developers',
+                        'W by Marriott', 'Jumeirah Lake Towers', 'JLT'];
+var PROJECT_TERMS    = ['w residences', 'signature developers', 'marriott',
+                        'jumeirah lake', 'jlt'];
+var CAMPAIGN_STRIP   = /^.*?WResidences-?/i;
 
 var _liveData = null;
 
 var AI = {
-  when: 'Generated 23 Jun 2026',
-  body: 'City Tower is mid-launch: most planned assets are delivered and live across owned channels, PR and Meta. Paid leads the story — 353 leads at AED 66 CPL via Meta instant forms, the Catalogue set far below blended CPL. Open gaps: unit videos still in production and no Google search yet.',
+  when: 'Generated 10 Sep 2026',
+  body: 'W Residences JLT went live on 9 September for a confirmed 3-month window (to 8 December) at AED 25,000/month. Material prep is complete and developer assets are nearly all in; Meta and Google are live, the landing page is up, portals are refreshed and the launch PR is out. Too early for meaningful CPL — the first read comes once lead volume builds.',
   calls: [
-    ['Scale the sub-AED-66 ad sets', 'Catalogue & Acquisition beat blended CPL — shift budget in.'],
-    ['Unblock 3-bed/studio renders', 'Critical path for unit-level creative.'],
-    ['Ship incentive ads + unit videos', 'Still in production — releasing them refreshes paid creative.'],
-    ['Decide on Google search', 'Capture the demand Meta is generating.']
+    ['Watch first-week CPL', 'Campaigns launched 9 Sept — set the efficiency baseline before optimising.'],
+    ['Close the WhatsApp channel setup', 'Blocking the re-engagement and offer sends.'],
+    ['Ship the social video content', 'On-site briefing and shoot 14–20 Sept feeds the follow-up posts.'],
+    ['Confirm the landing page refresh', 'Page is live but a design refresh is still planned.']
   ],
   insights: {
-    delivery: ['Delivery', 'Most planned assets are delivered and live; developer materials are nearly all in. Unit videos are the main open item.'],
-    activity: ['Activity', 'Cumulative output across the project shows the full scale of work — strong on PR, listings and statics; unit video is the open gap.'],
-    perf:     ['Performance', 'Blended CPL is outstanding for SZR leasing, instant-form led. Scale efficient ad sets; no Google yet.']
+    delivery: ['Delivery', 'Material prep is done and developer materials are 92% in. The open items sit in Launch and Ongoing — blog/SEO, offers pop-up and the WhatsApp channel.'],
+    activity: ['Activity', 'Output so far is launch infrastructure: website, portals, campaign structure, automations and PR. Content volume ramps from mid-September.'],
+    perf:     ['Performance', 'Meta and Google went live 9 September. Spend is still building, so CPL is not yet meaningful — read it once leads accumulate.']
   }
 };
 
@@ -214,13 +214,13 @@ var AI = {
 // phase bars, current phase) are derived from live data in normalize() below —
 // only the static project descriptors need a fallback.
 var META = {
-  project:   'City Tower 1',
-  developer: 'H&H Properties',
-  location:  'Sheikh Zayed Road, Dubai',
-  launch:    'May 2026',
-  monthName: 'May 2026',
+  project:   'W Residences Dubai',
+  developer: 'Signature Developers',
+  location:  'Jumeirah Lake Towers (JLT), Dubai',
+  launch:    'Sep 2026',
+  monthName: 'Sep 2026',
   phase:     'Launch',
-  devDelivered: 65
+  devDelivered: 92
 };
 
 /* ============================================================================
@@ -248,7 +248,7 @@ function resolveThumb(val) {
    ========================================================================== */
 window.addEventListener('load', function () {
   if (!SHEET_API || SHEET_API.indexOf('PASTE_SCRIPT_URL') !== -1) {
-    showError('Apps Script URL not configured. Open city-tower/index.html and set SHEET_API to your deployed /exec URL.');
+    showError('Apps Script URL not configured. Open w-residences/index.html and set SHEET_API to your deployed /exec URL.');
     return;
   }
   if (isUnlocked()) { startDashboard(); }          // already unlocked this session

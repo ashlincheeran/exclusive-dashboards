@@ -48,8 +48,8 @@ h1{font-size:30px;margin:8px 0 6px}.sub{color:var(--grey);margin:0 0 28px;max-wi
 <p class="sub">Live reporting for each exclusive off-plan project — delivery, activity, paid performance, creative showcase and market updates.</p>
 <div class="grid">
   <a class="card" href="./city-tower/"><div class="band">City Tower 1</div><div class="b"><div class="m">H&amp;H Properties · Sheikh Zayed Road</div><div class="go">Open dashboard →</div></div></a>
+  <a class="card" href="./w-residences/"><div class="band">W Residences Dubai</div><div class="b"><div class="m">Signature Developers · Jumeirah Lake Towers</div><div class="go">Open dashboard →</div></div></a>
   <div class="card soon"><div class="band">Next project</div><div class="b"><div class="m">Add a folder to publish a new dashboard</div><div class="go">Coming soon</div></div></div>
-  <div class="card soon"><div class="band">Next project</div><div class="b"><div class="m">&nbsp;</div><div class="go">Coming soon</div></div></div>
 </div>
 <div class="foot">Admin view — you can open any project. To add a project: drop a new <code>/project-name/index.html</code> into this repo.</div>
 </div>
@@ -62,7 +62,8 @@ h1{font-size:30px;margin:8px 0 6px}.sub{color:var(--grey);margin:0 0 28px;max-wi
    page source; suitable for share-gating, not hardened security. */
 var ACCESS = {
   '1986': { role: 'admin' },
-  '1234': { role: 'project', project: 'City Tower 1', url: './city-tower/' }
+  '1234': { role: 'project', project: 'City Tower 1',        url: './city-tower/' },
+  '5678': { role: 'project', project: 'W Residences Dubai',  url: './w-residences/' }
 };
 
 function $(id){ return document.getElementById(id); }
