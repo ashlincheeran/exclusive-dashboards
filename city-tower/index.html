@@ -576,7 +576,13 @@ function renderMarketing(DATA) {
 
 function renderCharts(camps) {
   var top = camps.slice(0, 6);
-  var lbl = top.map(function (c) { return String(c.name).replace(/^C1-Tower-/, '').replace(/-LF.*/, ''); });
+  var lbl = top.map(function (c) {
+    var s = String(c.name).replace(/^.*?C1-Tower-/i, '')          // drop BH-Leasing-C1-Tower- prefix
+                          .replace(/-(LF|WC).*/i, '')             // drop lead-form/whatsapp + date tail
+                          .replace(/-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*-?\d*.*/i, '')
+                          .replace(/-+$/, '');
+    return s || String(c.name);
+  });
   try {
     if (!window.Chart) return;
     if (window._paidChart)  window._paidChart.destroy();     // allow re-render (snapshots)

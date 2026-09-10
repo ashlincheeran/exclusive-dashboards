@@ -292,8 +292,84 @@ function readSourceMaterials(grids, d) {
   d.devMaterialsTotal    = total;      // developer materials total (count)
 }
 
-// ── PAID (Supermetrics) tab: campaign table + budget table ───────────────────
+// ── PAID: Supermetrics API (live) with the Paid tab as fallback ──────────────
+// Budget always comes from the sheet. Campaign performance comes from the
+// Supermetrics API when a script property SM_API_KEY is set; otherwise it
+// falls back to whatever is in the Paid (Supermetrics) tab.
 function readPaid(grids, d) {
+  readPaidFromSheet(grids, d);       // sets d.budget + d.paid (sheet fallback)
+  readPaidFromSupermetrics(d);       // overrides d.paid when SM_API_KEY is set
+}
+
+// Live Meta campaign performance via the Supermetrics REST API.
+// Configure in Apps Script → Project Settings → Script Properties:
+//   SM_API_KEY        (required)  your Supermetrics API key
+//   SM_ACCOUNT        (optional)  Meta ad account, default = City Tower's
+//   SM_DS_USER        (optional)  Supermetrics connection id
+//   SM_DATE_RANGE     (optional)  e.g. last_365_days, last_90_days, this_month
+//   SM_CAMPAIGN_MATCH (optional)  only campaigns whose name contains this
+function readPaidFromSupermetrics(d) {
+  var props = PropertiesService.getScriptProperties();
+  var key = props.getProperty('SM_API_KEY');
+  if (!key) return;                                   // not configured → keep sheet data
+
+  try {
+    var payload = {
+      ds_id: 'FA',
+      ds_accounts: [props.getProperty('SM_ACCOUNT') || 'act_9508663712551146'],
+      ds_user: props.getProperty('SM_DS_USER') || '122111799831053725',
+      date_range_type: props.getProperty('SM_DATE_RANGE') || 'last_365_days',
+      fields: ['adcampaign_name', 'cost', 'impressions', 'Clicks', 'onsite_conversion.lead_grouped'],
+      max_rows: 500,
+      api_key: key
+    };
+    var url = 'https://api.supermetrics.com/enterprise/v2/query/data/json?json=' +
+              encodeURIComponent(JSON.stringify(payload));
+    var resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    var body = JSON.parse(resp.getContentText());
+    var rows = body && body.data;
+    if (!rows || rows.length < 2) {
+      d.paidError = 'Supermetrics: ' + ((body && body.meta && body.meta.status_code) || 'no data');
+      return;                                          // keep sheet fallback
+    }
+
+    var match = props.getProperty('SM_CAMPAIGN_MATCH') || 'C1-Tower';
+    var campaigns = [], t = { spend: 0, impr: 0, clicks: 0, leads: 0 };
+    for (var i = 1; i < rows.length; i++) {            // row 0 = header
+      var r = rows[i];
+      var name = String(r[0] || '');
+      if (match && name.indexOf(match) === -1) continue;
+      var spend = toMoney(r[1]), impr = toMoney(r[2]), clicks = toMoney(r[3]), leads = toMoney(r[4]);
+      campaigns.push({
+        ch: 'Meta', name: name,
+        spend: spend, impr: impr, clicks: clicks,
+        ctr: impr ? clicks / impr : 0,
+        cpc: clicks ? spend / clicks : 0,
+        leads: leads,
+        cpl: leads ? spend / leads : null
+      });
+      t.spend += spend; t.impr += impr; t.clicks += clicks; t.leads += leads;
+    }
+    if (!campaigns.length) { d.paidError = 'Supermetrics: no campaigns matched "' + match + '"'; return; }
+
+    campaigns.sort(function (a, b) { return b.spend - a.spend; });
+    var total = {
+      ch: 'Meta', name: 'TOTAL — City Tower (Meta)',
+      spend: t.spend, impr: t.impr, clicks: t.clicks,
+      ctr: t.impr ? t.clicks / t.impr : 0,
+      cpc: t.clicks ? t.spend / t.clicks : 0,
+      leads: t.leads,
+      cpl: t.leads ? t.spend / t.leads : null
+    };
+    d.paid = { total: total, campaigns: campaigns, google: (d.paid && d.paid.google) || '' };
+    d.paidSource = 'supermetrics';
+  } catch (e) {
+    d.paidError = 'Supermetrics error: ' + ((e && e.message) || e);   // keep sheet fallback
+  }
+}
+
+// ── PAID (Supermetrics) TAB: campaign table + budget table (fallback) ────────
+function readPaidFromSheet(grids, d) {
   var campaigns = [], budget = [], totalRow = null, googleNote = '';
 
   grids.forEach(function (rows) {
