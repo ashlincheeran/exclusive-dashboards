@@ -97,7 +97,42 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 #gate button{margin-top:14px;width:100%;background:var(--slate);color:#fff;border:0;border-radius:10px;padding:12px;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
 #gate button:hover{background:var(--slate-2)}
 #gate .err{color:var(--bad);font-size:12.5px;margin-top:10px;min-height:16px}
-</style></head><body>
+
+/* ── SKELETON PLACEHOLDERS ────────────────────────────────────────────────────
+   While <body class="sk-on">, any container still empty shows a shimmer block,
+   so the page structure is visible immediately instead of a blank spinner.
+   Each container stops shimmering the moment render() fills it. */
+@keyframes shim{0%{background-position:-500px 0}100%{background-position:500px 0}}
+.sk-on #tl:empty,.sk-on #highgrid:empty,.sk-on #delstats:empty,.sk-on #cnt:empty,
+.sk-on #pstat:empty,.sk-on #shelf:empty,.sk-on #mkbox:empty,.sk-on #n-up:empty,
+.sk-on #ai-calls:empty,.sk-on #ai-body:empty,.sk-on #act-sub:empty{
+  display:block;border-radius:14px;
+  background:linear-gradient(90deg,#e6e0d9 25%,#f4f0ec 37%,#e6e0d9 63%);
+  background-size:900px 100%;animation:shim 1.5s infinite linear}
+.sk-on #tl:empty{min-height:150px;margin-top:26px}
+.sk-on #highgrid:empty{min-height:150px}
+.sk-on #delstats:empty{min-height:96px}
+.sk-on #cnt:empty{min-height:170px}
+.sk-on #pstat:empty{min-height:96px}
+.sk-on #shelf:empty{min-height:225px}
+.sk-on #mkbox:empty{min-height:150px}
+.sk-on #n-up:empty{min-height:110px}
+.sk-on #ai-calls:empty{min-height:66px}
+.sk-on #ai-body:empty{min-height:1.1em;width:70%}
+.sk-on #act-sub:empty{min-height:1em;width:52%}
+/* on the dark health panel */
+.sk-on #kpibar:empty{display:block;min-height:86px;border-radius:12px;
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.18) 37%,rgba(255,255,255,.06) 63%);
+  background-size:900px 100%;animation:shim 1.5s infinite linear}
+.sk-on #h-title:empty,.sk-on #ovr:empty{display:inline-block;min-width:180px;height:1em;border-radius:6px;
+  background:linear-gradient(90deg,rgba(255,255,255,.10) 25%,rgba(255,255,255,.24) 37%,rgba(255,255,255,.10) 63%);
+  background-size:900px 100%;animation:shim 1.5s infinite linear}
+.sk-on #ovr:empty{min-width:90px}
+/* topbar meta */
+.sk-on #m-p:empty,.sk-on #m-d:empty,.sk-on #m-m:empty{display:inline-block;min-width:96px;height:13px;border-radius:5px;
+  background:linear-gradient(90deg,rgba(255,255,255,.12) 25%,rgba(255,255,255,.28) 37%,rgba(255,255,255,.12) 63%);
+  background-size:900px 100%;animation:shim 1.5s infinite linear}
+</style></head><body class="sk-on">
 <div id="gate"><div class="box">
 <div class="eyebrow">betterhomes · Exclusive Projects</div>
 <h2>Enter your access PIN</h2>
@@ -106,7 +141,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <button onclick="submitPin()">Unlock</button>
 <div class="err" id="gate-err"></div>
 </div></div>
-<div id="loader"><div class="spin"></div><p>Loading dashboard…</p></div>
+<div id="loader" style="display:none"><div class="spin"></div><p>Loading dashboard…</p></div>
 <div class="topbar"><div class="brand"><b>betterhomes</b> · Exclusive Projects</div>
 <div class="topmeta"><div>Project<span id="m-p"></span></div><div>Developer<span id="m-d"></span></div><div>Reporting<span id="m-m"></span></div>
 <div class="histwrap"><span class="phasepill" id="m-ph" onclick="toggleHistory(event)" title="View previous weekly versions"></span><div class="histmenu" id="histmenu"></div></div></div></div>
@@ -276,8 +311,7 @@ function submitPin() {
   startDashboard();
 }
 function startDashboard() {
-  $('loader').style.display = 'flex';
-  loadLive();
+  loadLive();                       // skeletons stay until the data lands
 }
 
 // Load the current (live) data and render it.
@@ -290,6 +324,7 @@ function loadLive() {
       _viewingSnapshot = false;
       $('snapbanner').style.display = 'none';
       render(data);
+      document.body.classList.remove('sk-on');
       $('loader').style.display = 'none';
     })
     .catch(function (e) {
@@ -298,7 +333,14 @@ function loadLive() {
 }
 
 function showError(msg) {
-  $('loader').innerHTML = '<p style="color:var(--bad)">' + msg + '</p>';
+  document.body.classList.remove('sk-on');
+  $('loader').style.display = 'none';
+  var b = $('snapbanner');
+  b.style.display = 'flex';
+  b.style.background = 'var(--bad-bg)';
+  b.style.borderColor = 'var(--bad)';
+  b.style.color = 'var(--bad)';
+  b.innerHTML = '<span>⚠ ' + msg + '</span>';
 }
 
 /* ============================================================================
