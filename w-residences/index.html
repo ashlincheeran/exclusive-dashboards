@@ -233,6 +233,7 @@ var CAMPAIGN_STRIP   = /^.*?WResidences-?/i;
    Comma-separate to include more than one code. */
 var CRM_CAMPAIGNS    = 'bh-exclusive-W-Residences-signature-JLT-2026';
 var CRM_SINCE        = '2026-09-01';
+var PAID_PROJECT     = 'w-residences';   // key into PROJECTS in /api/paid-monthly
 
 var _liveData = null;
 
@@ -336,6 +337,7 @@ function loadLive() {
       document.body.classList.remove('sk-on');
       $('loader').style.display = 'none';
       loadCrmLeads(data);            // adds CRM leads once they arrive
+      loadMonthlySpend(data);        // fills the budget table's Spent column
     })
     .catch(function (e) {
       showError('Failed to load data — ' + (e.message || 'network error') + '. Check the Apps Script URL and that it is deployed as “Anyone” can access.');
@@ -676,9 +678,11 @@ function renderMarketing(DATA) {
   $('budtab').innerHTML = (DATA.budget || []).map(function (b) {
     var paidTag = (b.paid === 'Yes') ? '<span class="tag t-good">Paid</span>'
       : (b.paid === 'No' ? '<span class="tag t-bad">Unpaid</span>' : '<span class="tag t-na">—</span>');
+    // "Spent" is a manual sheet column; prefer live monthly spend when we have it.
+    var spent = b.spent || (DATA.monthlySpend && DATA.monthlySpend[b.month]) || 0;
     var ap = b.approved ? fmt(b.approved) : '—';
-    var sp = b.spent ? fmt(b.spent) : '—';
-    var v = (b.approved && b.spent) ? fmt(b.approved - b.spent) : '—';
+    var sp = spent ? fmt(spent) : '—';
+    var v = (b.approved && spent) ? fmt(b.approved - spent) : '—';
     return '<tr><td>' + b.month + '</td><td class="n">' + ap + '</td><td class="n">' + sp + '</td><td class="n">' + v + '</td><td>' + paidTag + '</td></tr>';
   }).join('') || '<tr><td colspan="5" class="src">Fill the Budget table in the Paid tab.</td></tr>';
 
@@ -756,6 +760,21 @@ function renderNextSteps(DATA) {
    contribute to blended CPL. Never blocks the dashboard: on any failure the
    page simply keeps the paid-only numbers.
    ========================================================================== */
+
+/* Actual spend per month (Meta + Google) for the budget table's Spent column,
+   which is otherwise a manual sheet column nobody fills in. Additive: on any
+   failure the table keeps whatever the sheet had. */
+function loadMonthlySpend(DATA) {
+  if (!PAID_PROJECT) return;
+  fetch('/api/paid-monthly?project=' + encodeURIComponent(PAID_PROJECT))
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (!res || res.error || !res.months) return;
+      DATA.monthlySpend = res.months;
+      renderMarketing(DATA);
+    })
+    .catch(function () {});
+}
 
 function loadCrmLeads(DATA) {
   if (!CRM_CAMPAIGNS) return;
