@@ -224,6 +224,10 @@ var PROJECT_ENTITIES = ['W Residences', 'W Residences Dubai', 'Signature Develop
 var PROJECT_TERMS    = ['w residences', 'signature developers', 'marriott',
                         'jumeirah lake', 'jlt'];
 var CAMPAIGN_STRIP   = /^.*?WResidences-?/i;
+/* CRM lead codes (utm campaign) counted as WhatsApp/Email leads.
+   Comma-separate to include more than one code. */
+var CRM_CAMPAIGNS    = 'bh-exclusive-W-Residences-signature-JLT-2026';
+var CRM_SINCE        = '2026-09-01';
 
 var _liveData = null;
 
@@ -326,6 +330,7 @@ function loadLive() {
       render(data);
       document.body.classList.remove('sk-on');
       $('loader').style.display = 'none';
+      loadCrmLeads(data);            // adds CRM leads once they arrive
     })
     .catch(function (e) {
       showError('Failed to load data — ' + (e.message || 'network error') + '. Check the Apps Script URL and that it is deployed as “Anyone” can access.');
@@ -690,6 +695,44 @@ function renderNextSteps(DATA) {
     return '<b>' + x.name + '</b>' + (x.status ? ' — ' + x.status : '') + (x.phase ? ' · ' + x.phase : '');
   });
   $('n-up').innerHTML = li(up);
+}
+
+/* ============================================================================
+   CRM LEADS — WhatsApp & Email leads from Metabase, via the Vercel function.
+   Loaded after the main render and folded into the paid totals so they
+   contribute to blended CPL. Never blocks the dashboard: on any failure the
+   page simply keeps the paid-only numbers.
+   ========================================================================== */
+function num(n) { return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+function loadCrmLeads(DATA) {
+  if (!CRM_CAMPAIGNS) return;
+  fetch('/api/crm-leads?campaign=' + encodeURIComponent(CRM_CAMPAIGNS) +
+        (CRM_SINCE ? '&since=' + encodeURIComponent(CRM_SINCE) : ''))
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (!res || res.error || !res.leads) return;          // nothing to add
+      var p = DATA.paid || (DATA.paid = { campaigns: [], total: {} });
+      p.campaigns = (p.campaigns || []).concat([{
+        ch: 'CRM', name: 'WhatsApp & Email (CRM)',
+        spend: 0, impr: 0, clicks: 0, ctr: 0, cpc: 0,
+        leads: res.leads, cpl: null
+      }]);
+
+      var t = p.total || (p.total = {});
+      t.leads = (t.leads || 0) + res.leads;
+      t.cpl   = t.leads ? (t.spend || 0) / t.leads : null;
+      DATA.crmLeads = res.leads;
+
+      (DATA.kpis || []).forEach(function (k) {
+        if (k.l === 'Leads (paid)') { k.l = 'Leads (paid + CRM)'; k.v = num(t.leads); }
+        if (k.l === 'CPL (AED)')    { k.v = t.leads ? num(t.cpl) : '—'; }
+      });
+
+      renderHealth(DATA);        // KPI bar: leads + blended CPL
+      renderMarketing(DATA);     // campaign table, stats and charts
+    })
+    .catch(function () {});      // CRM is additive — stay silent on failure
 }
 
 /* ============================================================================
