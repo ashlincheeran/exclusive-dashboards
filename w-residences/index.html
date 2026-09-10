@@ -506,8 +506,18 @@ function renderHeader(DATA) {
   tx('m-ph', 'Phase · ' + (DATA.phase || '—')); tx('f-p', DATA.project);
 }
 
+/* The sheet's project name often already carries the location, which would
+   otherwise print twice ("… (JLT) — Jumeirah Lake Towers (JLT), Dubai"). */
+function healthTitle(d) {
+  var p = String(d.project || '').trim(), l = String(d.location || '').trim();
+  if (!p) return l;
+  if (!l) return p;
+  var key = l.split(',')[0].trim().toLowerCase();
+  return (key && p.toLowerCase().indexOf(key) !== -1) ? p : (p + ' — ' + l);
+}
+
 function renderHealth(DATA) {
-  tx('h-title', (DATA.project || '') + ' — ' + (DATA.location || ''));
+  tx('h-title', healthTitle(DATA));
   tx('ovr', (DATA.overall || 0) + '%');
   try {
     if (window.Chart) {
@@ -519,7 +529,18 @@ function renderHealth(DATA) {
       });
     }
   } catch (e) {}
-  $('kpibar').innerHTML = (DATA.kpis || []).map(function (k) {
+  // Built here from the live paid + CRM figures rather than from whatever the
+  // Apps Script sent, so this bar always agrees with the Marketing section and
+  // does not depend on which version of the script is currently deployed.
+  var t = (DATA.paid && DATA.paid.total) || {};
+  var kpis = [
+    { v: fmt(t.spend),               l: 'Spend (AED)' },
+    { v: fmt(t.leads),               l: DATA.crmLeads ? 'Leads (paid + CRM)' : 'Leads' },
+    { v: t.leads ? fmt(t.cpl) : '—', l: 'CPL (AED)' },
+    { v: fmt(t.clicks),              l: 'Clicks' },
+    { v: fmt(DATA.deals),            l: 'Deals' }
+  ];
+  $('kpibar').innerHTML = kpis.map(function (k) {
     return '<div class="kpi"><div class="v">' + k.v + '</div><div class="l">' + k.l + '</div></div>';
   }).join('');
 }
@@ -735,7 +756,6 @@ function renderNextSteps(DATA) {
    contribute to blended CPL. Never blocks the dashboard: on any failure the
    page simply keeps the paid-only numbers.
    ========================================================================== */
-function num(n) { return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 
 function loadCrmLeads(DATA) {
   if (!CRM_CAMPAIGNS) return;
@@ -756,12 +776,7 @@ function loadCrmLeads(DATA) {
       t.cpl   = t.leads ? (t.spend || 0) / t.leads : null;
       DATA.crmLeads = res.leads;
 
-      (DATA.kpis || []).forEach(function (k) {
-        if (k.l === 'Leads (paid)') { k.l = 'Leads (paid + CRM)'; k.v = num(t.leads); }
-        if (k.l === 'CPL (AED)')    { k.v = t.leads ? num(t.cpl) : '—'; }
-      });
-
-      renderHealth(DATA);        // KPI bar: leads + blended CPL
+      renderHealth(DATA);        // KPI bar rebuilds itself from paid.total
       renderMarketing(DATA);     // campaign table, stats and charts
     })
     .catch(function () {});      // CRM is additive — stay silent on failure
