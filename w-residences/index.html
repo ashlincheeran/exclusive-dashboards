@@ -164,7 +164,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <div class="wrap">
 <div class="snapbanner" id="snapbanner" style="display:none"></div>
 
-<section id="timeline" style="border-bottom:0;padding-top:8px"><div class="sec-head"><div class="eyebrow">Campaign timeline</div><h2>The four-phase journey</h2><p>Click any phase to open its summary report.</p></div><div class="timeline" id="tl"></div></section>
+<section id="timeline" style="border-bottom:0;padding-top:8px"><div class="sec-head"><div class="eyebrow">Campaign timeline</div><h2>Marketing journey</h2><p>Click any phase to open its summary report.</p></div><div class="timeline" id="tl"></div></section>
 
 <section id="health" style="border-bottom:0;padding-top:30px"><div class="health">
 <div class="ring"><canvas id="ring" width="175" height="175"></canvas><div class="lbl"><div class="pct" id="ovr"></div><div class="t">Delivery progress</div></div></div>
@@ -244,6 +244,9 @@ var CAMPAIGN_STRIP   = /^.*?WResidences-?/i;
 var CRM_CAMPAIGNS    = 'bh-exclusive-W-Residences-signature-JLT-2026';
 var CRM_SINCE        = '2026-09-01';
 var PAID_PROJECT     = 'w-residences';   // key into PROJECTS in /api/paid-monthly
+/* Phases this project skips — dropped from the timeline, the phase modal
+   and the delivery totals. */
+var HIDDEN_PHASES    = ['Pre-launch'];
 
 var _liveData = null;
 
@@ -452,6 +455,18 @@ document.addEventListener('click', function (e) {
 // (phaseSummaries + deliverablesList), so the dashboard is correct even if the
 // Master metadata block didn't parse. Live sheet values are never overwritten.
 function normalize(DATA) {
+  // Phases this project skips. Filtered before anything derives from the data,
+  // so the timeline, the phase modal's indexes and the delivery totals all agree.
+  if (HIDDEN_PHASES.length) {
+    var hidden = function (p) { return HIDDEN_PHASES.indexOf(p && p.name) !== -1; };
+    var dropped = (DATA.phaseSummaries || []).some(hidden);
+    if (DATA.phaseSummaries) DATA.phaseSummaries = DATA.phaseSummaries.filter(function (p) { return !hidden(p); });
+    if (DATA.phases)         DATA.phases         = DATA.phases.filter(function (p) { return !hidden(p); });
+    // The sheet's own totals still count the dropped phase, which would leave the
+    // progress ring disagreeing with the phases on screen. Re-derive them below.
+    if (dropped) { DATA.overall = null; DATA.total = null; DATA.delivered = null; }
+  }
+
   var ps = DATA.phaseSummaries || [];
   var sumD = ps.reduce(function (s, p) { return s + (p.delivered || 0); }, 0);
   var sumT = ps.reduce(function (s, p) { return s + (p.total || 0); }, 0);
