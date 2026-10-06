@@ -75,13 +75,18 @@ export default async function handler(req, res) {
   if (!cfg)  return res.status(400).json({ error: 'unknown ?project' });
 
   const end = isoToday();
-  const months = {};
+  const months = {};        // "2026-09" -> spend, for the budget table
+  const byCampaign = {};    // campaign name -> running totals
   const errors = [];
 
-  // [month, campaign name, cost] for each source; the cost column is last.
+  // Columns are [month, campaign, cost, impressions, clicks, leads].
   const sources = [
-    { ds: 'FA', fields: ['Yearmonth', 'adcampaign_name', 'cost'], ...cfg.meta },
-    { ds: 'AW', fields: ['Yearmonth', 'campaign', 'cost'],        ...cfg.google }
+    { ds: 'FA', ch: 'Meta',
+      fields: ['Yearmonth', 'adcampaign_name', 'cost', 'impressions', 'Clicks', 'onsite_conversion.lead_grouped'],
+      ...cfg.meta },
+    { ds: 'AW', ch: 'Google',
+      fields: ['Yearmonth', 'campaign', 'cost', 'impressions', 'clicks', 'conversions'],
+      ...cfg.google }
   ];
 
   for (const s of sources) {
@@ -91,9 +96,19 @@ export default async function handler(req, res) {
       for (const row of rows) {
         const name = String(row[1] || '');
         if (name.toLowerCase().indexOf(needle) === -1) continue;
+
         const m = normaliseMonth(row[0]);
-        if (!m) continue;
-        months[m] = (months[m] || 0) + (Number(row[2]) || 0);
+        const spend = Number(row[2]) || 0;
+        if (m) months[m] = (months[m] || 0) + spend;
+
+        // Supermetrics splits a campaign across months; fold them back together.
+        const c = byCampaign[name] || (byCampaign[name] = {
+          ch: s.ch, name, spend: 0, impr: 0, clicks: 0, leads: 0
+        });
+        c.spend  += spend;
+        c.impr   += Number(row[3]) || 0;
+        c.clicks += Number(row[4]) || 0;
+        c.leads  += Number(row[5]) || 0;
       }
     } catch (e) {
       // One source failing shouldn't lose the other's spend.
@@ -101,9 +116,34 @@ export default async function handler(req, res) {
     }
   }
 
+  const derive = function (c) {
+    c.ctr = c.impr   ? c.clicks / c.impr  : 0;
+    c.cpc = c.clicks ? c.spend  / c.clicks : 0;
+    c.cpl = c.leads  ? c.spend  / c.leads  : null;
+    return c;
+  };
+
+  const campaigns = Object.keys(byCampaign)
+    .map(function (k) { return derive(byCampaign[k]); })
+    .sort(function (a, b) { return b.spend - a.spend; });
+
+  // Google always appears, so a project shows a zero row before it launches
+  // rather than the channel silently vanishing.
+  if (!campaigns.some(function (c) { return c.ch === 'Google'; })) {
+    campaigns.push(derive({ ch: 'Google', name: 'Google Ads — no spend yet',
+                            spend: 0, impr: 0, clicks: 0, leads: 0 }));
+  }
+
+  const total = derive(campaigns.reduce(function (t, c) {
+    t.spend += c.spend; t.impr += c.impr; t.clicks += c.clicks; t.leads += c.leads;
+    return t;
+  }, { ch: 'All', name: 'TOTAL — paid (Meta + Google)', spend: 0, impr: 0, clicks: 0, leads: 0 }));
+
   // Every account we pull reports in AED, so no conversion is applied.
   return res.status(200).json({
     months,
+    campaigns,
+    total,
     currency: 'AED',
     source: 'supermetrics',
     since: cfg.start,
