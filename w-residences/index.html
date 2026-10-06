@@ -338,6 +338,19 @@ function startDashboard() {
 }
 
 // Load the current (live) data and render it.
+/* The skeleton stays up until every metric has landed. reveal() is idempotent
+   and a watchdog calls it regardless after REVEAL_TIMEOUT_MS, so a slow or
+   hung upstream degrades to partial data rather than an endless skeleton. */
+var REVEAL_TIMEOUT_MS = 15000;
+var _revealed = false;
+
+function reveal() {
+  if (_revealed) return;
+  _revealed = true;
+  document.body.classList.remove('sk-on');
+}
+setTimeout(reveal, REVEAL_TIMEOUT_MS);
+
 function loadLive() {
   return fetch(SHEET_API)
     .then(function (r) { return r.json(); })
@@ -347,13 +360,14 @@ function loadLive() {
       _viewingSnapshot = false;
       $('snapbanner').style.display = 'none';
       render(data);
-      document.body.classList.remove('sk-on');
       $('loader').style.display = 'none';
-      loadCrmLeads(data);            // adds CRM leads once they arrive
-      loadPaidLive(data);            // live Supermetrics: campaigns, totals, Spent
+      // Hold the skeleton until the live paid and CRM figures are in, so the
+      // numbers don't visibly jump a few seconds after the page appears.
+      return Promise.all([loadCrmLeads(data), loadPaidLive(data)]).then(reveal);
     })
     .catch(function (e) {
       showError('Failed to load data — ' + (e.message || 'network error') + '. Check the Apps Script URL and that it is deployed as “Anyone” can access.');
+      reveal();
     });
 }
 
@@ -828,7 +842,7 @@ function rebuildPaid(DATA) {
    the Apps Script happens to be deployed. */
 function loadPaidLive(DATA) {
   if (!PAID_PROJECT) return;
-  fetch('/api/paid-monthly?project=' + encodeURIComponent(PAID_PROJECT))
+  return fetch('/api/paid-monthly?project=' + encodeURIComponent(PAID_PROJECT))
     .then(function (r) { return r.json(); })
     .then(function (res) {
       if (!res || res.error) return;
@@ -843,7 +857,7 @@ function loadPaidLive(DATA) {
 
 function loadCrmLeads(DATA) {
   if (!CRM_CAMPAIGNS) return;
-  fetch('/api/crm-leads?campaign=' + encodeURIComponent(CRM_CAMPAIGNS) +
+  return fetch('/api/crm-leads?campaign=' + encodeURIComponent(CRM_CAMPAIGNS) +
         (CRM_SINCE ? '&since=' + encodeURIComponent(CRM_SINCE) : ''))
     .then(function (r) { return r.json(); })
     .then(function (res) {
