@@ -66,6 +66,7 @@ section{padding:46px 0 8px;border-bottom:1px solid var(--line);scroll-margin-top
 .chip2{display:inline-flex;align-items:center;gap:6px;background:var(--cream-2);border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-size:12.5px;color:var(--slate-2);text-decoration:none;font-weight:600}.chip2:hover{background:#fff;border-color:var(--dust)}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
 th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--grey);font-weight:700}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+td a{color:var(--slate-2);text-decoration:none;font-weight:600;border-bottom:1px solid var(--line)}td a:hover{color:var(--slate);border-bottom-color:var(--dust)}
 #ptab tr.grp td{background:var(--cream);color:var(--slate);font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
 #ptab td.sub{padding-left:26px}
 .tag{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:12px}.t-good{background:var(--good-bg);color:var(--good)}.t-bad{background:var(--bad-bg);color:var(--bad)}.t-na{background:#EBE8EE;color:var(--grey)}
@@ -188,7 +189,7 @@ th{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--gre
 <div class="grid g2" style="margin-top:18px"><div class="card"><p class="eyebrow" style="color:var(--grey)">Leads &amp; CPL by campaign</p><div class="chartbox"><canvas id="paidChart"></canvas></div></div>
 <div class="card"><p class="eyebrow" style="color:var(--grey)">Spend by campaign</p><div class="chartbox"><canvas id="spendChart"></canvas></div></div></div>
 <div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Campaign detail</p><div style="max-height:360px;overflow:auto"><table><thead><tr><th>Campaign</th><th class="n">Spend</th><th class="n">Leads</th><th class="n">CPL</th></tr></thead><tbody id="ptab"></tbody></table></div><div class="src" id="gnote"></div></div>
-<div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Budget pacing — approved vs spent (incl. developer invoices)</p><table><thead><tr><th>Month</th><th class="n">Approved</th><th class="n">Spent</th><th class="n">Variance</th><th>Invoice paid</th></tr></thead><tbody id="budtab"></tbody></table></div>
+<div class="card" style="margin-top:18px"><p class="eyebrow" style="color:var(--grey)">Budget pacing — approved vs spent (incl. developer invoices)</p><table><thead><tr><th>Month</th><th class="n">Approved</th><th class="n">Spent</th><th class="n">Variance</th><th>Invoice paid</th><th>Proof of spend</th><th>Leads review</th></tr></thead><tbody id="budtab"></tbody></table></div>
 </section>
 
 <section id="market"><div class="sec-head"><div class="eyebrow">Market updates</div><h2>What's happening in the market</h2><p>UAE &amp; the project's location — pulled from current news. Click below to fetch the latest PR &amp; news for this project's area.</p></div><div class="card" id="mkbox"></div>
@@ -690,6 +691,16 @@ var PLATFORMS = [
   { key: 'CRM',    label: 'EDM — WhatsApp & Email' }
 ];
 
+/* Budget-table link cells. The sheet column holds a pasted URL, so render an
+   anchor only when it really is one — a stray note must not become a broken
+   link. Older Apps Script versions send no such field at all, which simply
+   reads as blank rather than breaking the row. */
+function linkCell(v) {
+  var u = String(v == null ? '' : v).trim();
+  if (!/^https?:\/\//i.test(u)) return '<td class="src">\u2014</td>';
+  return '<td><a href="' + u.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener">Open \u2197</a></td>';
+}
+
 function renderMarketing(DATA) {
   var paid = DATA.paid || {}, t = paid.total || {};
   // This section is the paid-campaign (Supermetrics) view; all-source totals
@@ -737,8 +748,9 @@ function renderMarketing(DATA) {
     var ap = b.approved ? fmt(b.approved) : '—';
     var sp = spent ? fmt(spent) : '—';
     var v = (b.approved && spent) ? fmt(b.approved - spent) : '—';
-    return '<tr><td>' + b.month + '</td><td class="n">' + ap + '</td><td class="n">' + sp + '</td><td class="n">' + v + '</td><td>' + paidTag + '</td></tr>';
-  }).join('') || '<tr><td colspan="5" class="src">Fill the Budget table in the Paid tab.</td></tr>';
+    return '<tr><td>' + b.month + '</td><td class="n">' + ap + '</td><td class="n">' + sp + '</td><td class="n">' + v + '</td><td>' + paidTag + '</td>' +
+      linkCell(b.proof) + linkCell(b.leadsReview) + '</tr>';
+  }).join('') || '<tr><td colspan="7" class="src">Fill the Budget table in the Paid tab.</td></tr>';
 
   renderCharts(camps);
 }
