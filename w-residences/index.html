@@ -289,7 +289,18 @@ if (window.Chart) { Chart.defaults.font.family = "'Helvetica Neue',Arial,sans-se
 
 function $(id) { return document.getElementById(id); }
 function tx(id, v) { var el = $(id); if (el) el.textContent = (v == null ? '' : v); }
-function fmt(n) { n = n || 0; return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'K' : ('' + Math.round(n)); }
+/* Number formatting.
+   fmt()    money and rates — thousands separators and exactly two decimals.
+            No "K" abbreviation: a figure is never rounded away to "2.9K".
+   fmtInt() counts (leads, clicks, deals, assets) — whole numbers with
+            separators, since ".00" on a headcount reads as broken, not precise.
+   pct()    percentages — up to two decimals, trailing zeros dropped.
+   round2() a Number, not a string, for chart datasets and CSS widths. */
+function sep(s) { var p = String(s).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return p.join('.'); }
+function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+function fmt(n)    { return sep((Number(n) || 0).toFixed(2)); }
+function fmtInt(n) { return sep(Math.round(Number(n) || 0)); }
+function pct(n)    { return String(round2(n)); }
 function li(a) { return (a && a.length ? a : ['—']).map(function (x) { return '<li>' + x + '</li>'; }).join(''); }
 function driveThumb(link) { var m = String(link || '').match(/\/file\/d\/([^\/]+)/); return m ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w600') : ''; }
 // Resolve a usable preview image: a Drive /file/d/ link → Drive thumbnail; any
@@ -559,7 +570,7 @@ function healthTitle(d) {
 
 function renderHealth(DATA) {
   tx('h-title', healthTitle(DATA));
-  tx('ovr', (DATA.overall || 0) + '%');
+  tx('ovr', pct(DATA.overall) + '%');
   try {
     if (window.Chart) {
       if (window._ringChart) window._ringChart.destroy();   // allow re-render (snapshots)
@@ -576,10 +587,10 @@ function renderHealth(DATA) {
   var t = (DATA.paid && DATA.paid.total) || {};
   var kpis = [
     { v: fmt(t.spend),               l: 'Spend (AED)' },
-    { v: fmt(t.leads),               l: DATA.crmLeads ? 'Leads (paid + CRM)' : 'Leads' },
+    { v: fmtInt(t.leads),            l: DATA.crmLeads ? 'Leads (paid + CRM)' : 'Leads' },
     { v: t.leads ? fmt(t.cpl) : '—', l: 'CPL (AED)' },
-    { v: fmt(t.clicks),              l: 'Clicks' },
-    { v: fmt(DATA.deals),            l: 'Deals' }
+    { v: fmtInt(t.clicks),           l: 'Clicks' },
+    { v: fmtInt(DATA.deals),         l: 'Deals' }
   ];
   $('kpibar').innerHTML = kpis.map(function (k) {
     return '<div class="kpi"><div class="v">' + k.v + '</div><div class="l">' + k.l + '</div></div>';
@@ -597,8 +608,8 @@ function renderTimeline(DATA) {
     var here = cur ? '<span class="youhere">You are here</span>' : '';
     return '<div class="tl ' + cls + '" onclick="openPhase(' + i + ')">' + here +
       '<div class="mo">Phase ' + (i + 1) + '</div><h4>' + p.name + '</h4>' +
-      '<div class="mini"><i style="width:' + p.pct + '%"></i></div>' +
-      '<div class="pc">' + p.pct + '% delivered</div><div class="open">View summary →</div></div>';
+      '<div class="mini"><i style="width:' + round2(p.pct) + '%"></i></div>' +
+      '<div class="pc">' + pct(p.pct) + '% delivered</div><div class="open">View summary →</div></div>';
   }).join('');
 }
 
@@ -644,7 +655,7 @@ function renderDelivery(DATA) {
   if (assets == null) assets = (window._deliverables || []).reduce(function (s, x) { return s + (x.qty || 0); }, 0);
 
   $('delstats').className = 'grid';
-  $('delstats').innerHTML = '<div class="card stat soft"><div class="v">' + (assets || 0) + '</div><div class="l">Total assets created</div></div>';
+  $('delstats').innerHTML = '<div class="card stat soft"><div class="v">' + fmtInt(assets) + '</div><div class="l">Total assets created</div></div>';
 }
 
 function renderActivity(DATA) {
@@ -666,7 +677,7 @@ function renderActivity(DATA) {
   if (!tiles.length) tiles = (DATA.counterCum || []);
 
   $('cnt').innerHTML = tiles.map(function (c) {
-    return '<div class="cb"><div class="v">' + c.val + '</div><div class="l">' + c.label + '</div></div>';
+    return '<div class="cb"><div class="v">' + fmtInt(c.val) + '</div><div class="l">' + c.label + '</div></div>';
   }).join('') || '<span class="src">No delivered work logged yet.</span>';
 }
 
@@ -685,9 +696,9 @@ function renderMarketing(DATA) {
   // live in the health bar up top.
   var stats = [
     ['Spend (AED)',            fmt(t.spend)],
-    ['Leads from campaigns',   t.leads || 0],
+    ['Leads from campaigns',   fmtInt(t.leads)],
     ['Blended CPL — campaigns', t.cpl ? fmt(t.cpl) : '—'],
-    ['Clicks',                 fmt(t.clicks)]
+    ['Clicks',                 fmtInt(t.clicks)]
   ];
   $('pstat').innerHTML = stats.map(function (s) {
     return '<div class="card stat"><div class="v">' + s[1] + '</div><div class="l">' + s[0] + '</div></div>';
@@ -697,7 +708,7 @@ function renderMarketing(DATA) {
   // Campaign detail is grouped by platform, each group led by its own subtotal.
   function campRow(c) {
     return '<tr><td class="sub">' + String(c.name).replace(CAMPAIGN_STRIP, '') + '</td><td class="n">' + fmt(c.spend) +
-      '</td><td class="n">' + (c.leads || 0) + '</td><td class="n">' + (c.cpl ? fmt(c.cpl) : '–') + '</td></tr>';
+      '</td><td class="n">' + fmtInt(c.leads) + '</td><td class="n">' + (c.cpl ? fmt(c.cpl) : '–') + '</td></tr>';
   }
   var rows = [], grouped = {};
   PLATFORMS.forEach(function (p) {
@@ -706,7 +717,7 @@ function renderMarketing(DATA) {
     var sp = 0, ld = 0;
     list.forEach(function (c) { grouped[c.name] = 1; sp += c.spend || 0; ld += c.leads || 0; });
     rows.push('<tr class="grp"><td>' + p.label + '</td><td class="n">' + fmt(sp) +
-      '</td><td class="n">' + ld + '</td><td class="n">' + (ld ? fmt(sp / ld) : '–') + '</td></tr>');
+      '</td><td class="n">' + fmtInt(ld) + '</td><td class="n">' + (ld && sp ? fmt(sp / ld) : '–') + '</td></tr>');
     list.forEach(function (c) { rows.push(campRow(c)); });
   });
   // Anything on an unrecognised channel still shows rather than silently vanishing.
@@ -748,8 +759,8 @@ function renderCharts(camps) {
     window._paidChart = new Chart($('paidChart'), {
       type: 'bar',
       data: { labels: lbl, datasets: [
-        { label: 'Leads', data: top.map(function (c) { return c.leads || 0; }), backgroundColor: C.dust, yAxisID: 'y', borderRadius: 4 },
-        { type: 'line', label: 'CPL', data: top.map(function (c) { return c.cpl || null; }), borderColor: C.tan, backgroundColor: C.tan, yAxisID: 'y1', tension: .3, pointRadius: 4, spanGaps: true }
+        { label: 'Leads', data: top.map(function (c) { return Math.round(c.leads || 0); }), backgroundColor: C.dust, yAxisID: 'y', borderRadius: 4 },
+        { type: 'line', label: 'CPL', data: top.map(function (c) { return c.cpl ? round2(c.cpl) : null; }), borderColor: C.tan, backgroundColor: C.tan, yAxisID: 'y1', tension: .3, pointRadius: 4, spanGaps: true }
       ] },
       options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } },
         scales: { y: { title: { display: true, text: 'Leads' }, beginAtZero: true },
@@ -757,7 +768,7 @@ function renderCharts(camps) {
     });
     window._spendChart = new Chart($('spendChart'), {
       type: 'doughnut',
-      data: { labels: lbl, datasets: [{ data: top.map(function (c) { return c.spend || 0; }), backgroundColor: [C.slate, C.blue, C.dust, C.tan, C.taupe, C.grey] }] },
+      data: { labels: lbl, datasets: [{ data: top.map(function (c) { return round2(c.spend); }), backgroundColor: [C.slate, C.blue, C.dust, C.tan, C.taupe, C.grey] }] },
       options: { maintainAspectRatio: false, cutout: '58%', plugins: { legend: { position: 'right' } } }
     });
   } catch (e) { if (window.console) console.warn('charts', e); }
@@ -894,8 +905,8 @@ function openPhase(i) {
   var p = (window._phaseSummaries || [])[i];
   if (!p) return;
   tx('md-ph', 'Phase ' + (i + 1) + ' · ' + p.name);
-  tx('md-title', p.name + ' — ' + p.pct + '% delivered');
-  tx('md-pc', p.delivered + ' of ' + p.total + ' deliverables complete');
+  tx('md-title', p.name + ' — ' + pct(p.pct) + '% delivered');
+  tx('md-pc', fmtInt(p.delivered) + ' of ' + fmtInt(p.total) + ' deliverables complete');
   $('md-counts').innerHTML = (p.counts || []).map(function (c) {
     return '<div class="c"><div class="v">' + c.val + '</div><div class="l">' + c.label + '</div></div>';
   }).join('') || '<div class="src">No activity logged.</div>';
