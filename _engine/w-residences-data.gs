@@ -330,7 +330,7 @@ function readPaidFromSupermetrics(d) {
     ch: 'Google', ds_id: 'AW', start: start, end: end,
     accounts: (props.getProperty('SM_GOOGLE_ACCOUNTS') || '1174729952,5063000241').split(','),
     fields: ['campaign', 'cost', 'impressions', 'clicks', 'conversions'],
-    match: props.getProperty('SM_GOOGLE_MATCH') || 'WRES'
+    match: props.getProperty('SM_GOOGLE_MATCH') || 'WResidences'
   });
 
   // Google should always be visible, even before it launches — show a zero row.
@@ -364,13 +364,22 @@ function readPaidFromSupermetrics(d) {
   if (errs.length) d.paidError = errs.join(' | ');
 }
 
+// Platforms punctuate campaign names differently — Meta "WResidences-Leads-…"
+// against Google "BH-EX_W-RESIDENCES_SEARCH_…" — so a literal substring match
+// silently misses one of them. Compare on letters and digits only.
+function squash_(s) {
+  return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 // One Supermetrics query → array of campaign rows (or [] with errs appended).
 function smFetch_(key, errs, q) {
   try {
+    // ds_user is deliberately omitted: pinning it to one stored authentication
+    // broke Google Ads with QUERY_AUTH_UNAVAILABLE once that auth was re-issued.
+    // Left out, Supermetrics resolves the right one itself.
     var payload = {
       ds_id: q.ds_id,
       ds_accounts: q.accounts,
-      ds_user: PropertiesService.getScriptProperties().getProperty('SM_DS_USER') || '122111799831053725',
       date_range_type: 'custom',
       start_date: q.start,
       end_date: q.end,
@@ -378,6 +387,8 @@ function smFetch_(key, errs, q) {
       max_rows: 500,
       api_key: key
     };
+    var dsUser = PropertiesService.getScriptProperties().getProperty('SM_DS_USER');
+    if (dsUser) payload.ds_user = dsUser;
     var url = 'https://api.supermetrics.com/enterprise/v2/query/data/json?json=' +
               encodeURIComponent(JSON.stringify(payload));
     var body = JSON.parse(UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText());
@@ -391,7 +402,7 @@ function smFetch_(key, errs, q) {
     for (var i = 1; i < rows.length; i++) {          // row 0 = header
       var r = rows[i];
       var name = String(r[0] || '');
-      if (q.match && name.indexOf(q.match) === -1) continue;
+      if (q.match && squash_(name).indexOf(squash_(q.match)) === -1) continue;
       var spend = toMoney(r[1]), impr = toMoney(r[2]), clicks = toMoney(r[3]), leads = toMoney(r[4]);
       out.push({
         ch: q.ch, name: name, spend: spend, impr: impr, clicks: clicks,
@@ -445,10 +456,12 @@ function readPaidFromSheet(grids, d) {
         if (!mo || mo === 'Month') continue;
         if (mo.indexOf('-') === -1) { sec = null; continue; } // left the budget block
         budget.push({
-          month:    mo,
-          approved: toMoney(r[1]) || null,
-          spent:    toMoney(r[2]) || null,
-          paid:     sv(r[4])
+          month:       mo,
+          approved:    toMoney(r[1]) || null,
+          spent:       toMoney(r[2]) || null,
+          paid:        sv(r[4]),
+          proof:       sv(r[5]),          // F — Proof of spends (invoice link)
+          leadsReview: sv(r[6])           // G — Leads review (link to the leads sheet)
         });
       }
     }

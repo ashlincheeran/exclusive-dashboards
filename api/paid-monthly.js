@@ -17,13 +17,11 @@
 // Accounts are held here rather than taken from the query string, so this
 // cannot be used to pull arbitrary accounts out of our Supermetrics licence.
 
-const DEFAULT_DS_USER = '122111799831053725';
-
 const PROJECTS = {
   'w-residences': {
     start:  '2026-09-01',
     meta:   { accounts: ['act_2029551921300421'], match: 'WResidences' },
-    google: { accounts: ['1174729952', '5063000241'], match: 'WRES' }
+    google: { accounts: ['1174729952', '5063000241'], match: 'WResidences' }
   },
   'city-tower': {
     start:  '2026-04-01',
@@ -31,6 +29,11 @@ const PROJECTS = {
     google: { accounts: ['1174729952', '5063000241'], match: 'CT1' }
   }
 };
+
+// Platforms punctuate campaign names differently — Meta "WResidences-Leads-…"
+// against Google "BH-EX_W-RESIDENCES_SEARCH_…" — so a literal substring match
+// silently misses one of them. Compare on letters and digits only.
+function squash(s) { return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]/g, ''); }
 
 function isoToday() {
   return new Date().toISOString().slice(0, 10);
@@ -42,10 +45,12 @@ function normaliseMonth(v) {
 }
 
 async function smQuery(key, dsId, accounts, fields, start, end) {
+  // ds_user is deliberately omitted: pinning it to one stored authentication
+  // broke Google Ads with QUERY_AUTH_UNAVAILABLE once that auth was re-issued.
+  // Left out, Supermetrics resolves the right one itself. Override only if set.
   const payload = {
     ds_id: dsId,
     ds_accounts: accounts,
-    ds_user: process.env.SM_DS_USER || DEFAULT_DS_USER,
     date_range_type: 'custom',
     start_date: start,
     end_date: end,
@@ -53,6 +58,7 @@ async function smQuery(key, dsId, accounts, fields, start, end) {
     max_rows: 1000,
     api_key: key
   };
+  if (process.env.SM_DS_USER) payload.ds_user = process.env.SM_DS_USER;
   const url = 'https://api.supermetrics.com/enterprise/v2/query/data/json?json=' +
     encodeURIComponent(JSON.stringify(payload));
 
@@ -92,10 +98,10 @@ export default async function handler(req, res) {
   for (const s of sources) {
     try {
       const rows = await smQuery(key, s.ds, s.accounts, s.fields, cfg.start, end);
-      const needle = s.match.toLowerCase();
+      const needle = squash(s.match);
       for (const row of rows) {
         const name = String(row[1] || '');
-        if (name.toLowerCase().indexOf(needle) === -1) continue;
+        if (squash(name).indexOf(needle) === -1) continue;
 
         const m = normaliseMonth(row[0]);
         const spend = Number(row[2]) || 0;
